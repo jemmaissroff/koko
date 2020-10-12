@@ -95,8 +95,7 @@ func isLetter(ch byte) bool {
 func (l *Lexer) readNumber() token.Token {
 	position := l.position
 
-	var tokenType token.TokenType
-	tokenType = token.INT
+	var tokenType token.TokenType = token.INT
 
 	for isDigit(l.ch) {
 		l.readChar()
@@ -114,7 +113,10 @@ func (l *Lexer) readNumber() token.Token {
 		}
 	}
 
-	return token.Token{Type: tokenType, Literal: l.input[position:l.position]}
+	return token.Token{
+		Type: tokenType,
+		Literal: l.input[position:l.position],
+	}
 }
 
 func isDigit(ch byte) bool {
