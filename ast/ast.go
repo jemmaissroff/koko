@@ -151,6 +151,17 @@ func (il *IntegerLiteral) expressionNode()      {}
 func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
 func (il *IntegerLiteral) String() string       { return il.Token.Literal }
 
+type CommentLiteral struct {
+	Token token.Token
+	Value string
+}
+
+func (com *CommentLiteral) expressionNode()      {}
+func (com *CommentLiteral) TokenLiteral() string { return com.Token.Literal }
+func (com *CommentLiteral) String() string       {
+	return "//" + com.Token.Literal
+}
+
 type FloatLiteral struct {
 	Token token.Token
 	Value float64

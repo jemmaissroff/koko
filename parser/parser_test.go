@@ -7,6 +7,34 @@ import (
 	"testing"
 )
 
+func TestComments(t *testing.T) {
+	input := `
+	let x = 5; // comment
+	// another comment
+	1 + 2
+	`;
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 4 {
+		t.Fatalf("program.Statements does not contain 4 statements. got=%d",
+		len(program.Statements))
+	}
+
+	comm := program.Statements[1].String()
+	if comm != "// comment" {
+		t.Fatalf("comment %s is not // comment", comm)
+	}
+
+	comm = program.Statements[2].String()
+	if comm != "// another comment" {
+		t.Fatalf("comment %s is not // another comment", comm)
+	}
+}
+
 func TestLetStatements(t *testing.T) {
 	tests := []struct {
 		input              string
@@ -768,6 +796,27 @@ func testIntegerLiteral(t *testing.T, il ast.Expression, value int64) bool {
 	if integ.TokenLiteral() != fmt.Sprintf("%d", value) {
 		t.Errorf("integ.TokenLiteral not %d. got=%s", value,
 			integ.TokenLiteral())
+		return false
+	}
+
+	return true
+}
+
+func testCommentLiteral(t *testing.T, cl ast.Expression, value string) bool {
+	com, ok := cl.(*ast.CommentLiteral)
+	if !ok {
+		t.Errorf("cl not *ast.CommentLiteral. got=%T", cl)
+		return false
+	}
+
+	if com.Value != value {
+		t.Errorf("com.Value not %s. got=%s", value, com.Value)
+		return false
+	}
+
+	if com.TokenLiteral() != fmt.Sprintf("%s", value) {
+		t.Errorf("com.TokenLiteral not %s. got=%s", value,
+			com.TokenLiteral())
 		return false
 	}
 

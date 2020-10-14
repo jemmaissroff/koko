@@ -14,10 +14,14 @@ func TestNextToken(t *testing.T) {
 		x + y;
 	};
 
-	let result = add(five, ten);
+	// comment
+
+	let result = add(five, ten); // inline comment
 
 	!-/*5;
 	5 < 10 > 5;
+
+	// comment with math: 5 + 2
 
 	if (5 < 10) {
           return true;
@@ -61,6 +65,7 @@ func TestNextToken(t *testing.T) {
 		{token.SEMICOLON, ";"},
 		{token.RBRACE, "}"},
 		{token.SEMICOLON, ";"},
+		{token.COMMENT, " comment"},
 		{token.LET, "let"},
 		{token.IDENT, "result"},
 		{token.ASSIGN, "="},
@@ -71,6 +76,7 @@ func TestNextToken(t *testing.T) {
 		{token.IDENT, "ten"},
 		{token.RPAREN, ")"},
 		{token.SEMICOLON, ";"},
+		{token.COMMENT, " inline comment"},
 		{token.BANG, "!"},
 		{token.MINUS, "-"},
 		{token.SLASH, "/"},
@@ -83,6 +89,7 @@ func TestNextToken(t *testing.T) {
 		{token.GT, ">"},
 		{token.INT, "5"},
 		{token.SEMICOLON, ";"},
+		{token.COMMENT, " comment with math: 5 + 2"},
 		{token.IF, "if"},
 		{token.LPAREN, "("},
 		{token.INT, "5"},
