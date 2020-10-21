@@ -162,6 +162,17 @@ func (com *CommentLiteral) String() string       {
 	return "//" + com.Token.Literal
 }
 
+type StringLiteral struct {
+	Token token.Token
+	Value string
+}
+
+func (str *StringLiteral) expressionNode()      {}
+func (str *StringLiteral) TokenLiteral() string { return str.Token.Literal }
+func (str *StringLiteral) String() string       {
+	return "\"" + str.Token.Literal + "\""
+}
+
 type FloatLiteral struct {
 	Token token.Token
 	Value float64

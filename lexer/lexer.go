@@ -45,7 +45,6 @@ func (l *Lexer) NextToken() token.Token {
 		tok = twoChar(l, token.BANG, token.NOT_EQ, '=')
 	case '/':
 		if l.peekChar() == '/' {
-			l.readChar();
 			tok = l.readComment();
 		} else {
 			tok = newToken(token.SLASH, l.ch)
@@ -66,6 +65,8 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.RBRACE, l.ch)
 	case ';':
 		tok = newToken(token.SEMICOLON, l.ch)
+	case '"':
+		tok = l.readString();
 	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF
@@ -97,7 +98,23 @@ func isLetter(ch byte) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch == '?' || ch == '!'
 }
 
+func (l *Lexer) readString() token.Token {
+	l.readChar()
+	position := l.position
+
+	for l.ch != '"' {
+		l.readChar()
+	}
+
+	return token.Token{
+		Type: token.STRING,
+		Literal: l.input[position:l.position],
+	}
+}
+
 func (l *Lexer) readComment() token.Token {
+	l.readChar()
+	l.readChar()
 	position := l.position
 
 	for l.ch != '\n' && l.ch != 0 {
@@ -106,7 +123,7 @@ func (l *Lexer) readComment() token.Token {
 
 	return token.Token{
 		Type: token.COMMENT,
-		Literal: l.input[position + 1:l.position],
+		Literal: l.input[position:l.position],
 	}
 }
 
