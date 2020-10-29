@@ -84,7 +84,24 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(val) {
 			return val
 		}
+		env.Set(node.Name.Value, val)
+	case *ast.Identifier:
+		return evalIdentifier(node, env)
+	case *ast.FunctionLiteral:
+		params := node.Parameters
+		body := node.Body
+		return &object.Function{Parameters: params, Env: env, Body: body}
+	case *ast.CallExpression:
+		function := Eval(node.Function, env)
+		if isError(function) {
+			return function
+		}
+		args := evalExpressions(node.Arguments, env)
+		if len(args) == 1 && isError(args[0]) {
+			return args[0]
+		}
 
+		return applyFunction(function, args)
 	}
 
 	return nil
@@ -140,6 +157,17 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 		switch {
 		case right.Type() == object.STRING_OBJ:
 			return evalStringInfixExpression(operator, left, right)
+		case operator == "*" && right.Type() == object.INTEGER_OBJ:
+			return multiplyStrings(left, right)
+		case operator == "+":
+			return addStrings(left, right)
+		}
+	case right.Type() == object.STRING_OBJ:
+		switch {
+		case operator == "*" && left.Type() == object.INTEGER_OBJ:
+			return multiplyStrings(right, left)
+		case operator == "+":
+			return addStrings(left, right)
 		}
 	case left.Type() == object.INTEGER_OBJ:
 		switch {
@@ -240,6 +268,15 @@ func evalStringInfixExpression(operator string, left object.Object, right object
 	}
 }
 
+func multiplyStrings(str object.Object, integer object.Object) *object.String {
+	res := ""
+	strVal := str.(*object.String).Value
+	for i := 0; i < int(integer.(*object.Integer).Value); i++ {
+		res += strVal
+	}
+	return &object.String{Value: res}
+}
+
 func addStrings(left object.Object, right object.Object) *object.String {
 	return &object.String{Value: left.String().Value + right.String().Value}
 }
@@ -306,4 +343,59 @@ func isError(obj object.Object) bool {
 		return obj.Type() == object.ERROR_OBJ
 	}
 	return false
+}
+
+func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object {
+	val, ok := env.Get(node.Value)
+	if !ok {
+		return newError("identifier not found: " + node.Value)
+	}
+	return val
+}
+
+func evalExpressions(
+	exps []ast.Expression,
+	env *object.Environment,
+) []object.Object {
+	var result []object.Object
+
+	for _, e := range exps {
+		evaluated := Eval(e, env)
+		if isError(evaluated) {
+			return []object.Object{evaluated}
+		}
+		result = append(result, evaluated)
+	}
+
+	return result
+}
+
+func applyFunction(fn object.Object, args []object.Object) object.Object {
+	function, ok := fn.(*object.Function)
+	if !ok {
+		return newError("not a function %s", fn.Type())
+	}
+	extendedEnv := extendFunctionEnv(function, args)
+	evaluated := Eval(function.Body, extendedEnv)
+	return unwrapReturnValue(evaluated)
+}
+
+func extendFunctionEnv(
+	fn *object.Function,
+	args []object.Object,
+) *object.Environment {
+	env := object.NewEnclosedEnvironment(fn.Env)
+
+	for paramIdx, param := range fn.Parameters {
+		env.Set(param.Value, args[paramIdx])
+	}
+	return env
+}
+
+func unwrapReturnValue(obj object.Object) object.Object {
+	if returnValue, ok := obj.(*object.Return); ok {
+		return returnValue.Value
+	}
+
+	return obj
 }

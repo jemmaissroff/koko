@@ -1,20 +1,24 @@
 package object
 
 import (
+	"bytes"
 	"fmt"
+	"monkey/ast"
 	"strconv"
+	"strings"
 )
 
 type ObjectType string
 
 const (
-	BOOLEAN_OBJ = "BOOLEAN"
-	FLOAT_OBJ   = "FLOAT"
-	INTEGER_OBJ = "INTEGER"
-	NIL_OBJ     = "NIL"
-	RETURN_OBJ  = "RETURN"
-	STRING_OBJ  = "STRING"
-	ERROR_OBJ   = "ERROR"
+	BOOLEAN_OBJ  = "BOOLEAN"
+	FLOAT_OBJ    = "FLOAT"
+	INTEGER_OBJ  = "INTEGER"
+	NIL_OBJ      = "NIL"
+	RETURN_OBJ   = "RETURN"
+	STRING_OBJ   = "STRING"
+	ERROR_OBJ    = "ERROR"
+	FUNCTION_OBJ = "FUNCTION"
 )
 
 type Object interface {
@@ -85,3 +89,29 @@ type Error struct {
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
 func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
 func (e *Error) String() String   { return String{Value: e.Inspect()} }
+
+type Function struct {
+	Parameters []*ast.Identifier
+	Body       *ast.BlockStatement
+	Env        *Environment
+}
+
+func (f *Function) Type() ObjectType { return FUNCTION_OBJ }
+func (f *Function) Inspect() string {
+	var out bytes.Buffer
+
+	params := []string{}
+	for _, p := range f.Parameters {
+		params = append(params, p.String())
+	}
+
+	out.WriteString("fn")
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") {\n")
+	out.WriteString(f.Body.String())
+	out.WriteString("\n}")
+
+	return out.String()
+}
+func (f *Function) String() String { return String{Value: f.Inspect()} }
