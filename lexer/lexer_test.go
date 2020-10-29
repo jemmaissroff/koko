@@ -19,7 +19,7 @@ func TestNextToken(t *testing.T) {
 
 	let result = add(five, ten); // inline comment
 
-	!-/*5;
+	!%-/*5;
 	5 < 10 > 5;
 
 	// comment with math: 5 + 2
@@ -34,6 +34,9 @@ func TestNextToken(t *testing.T) {
 
 	10 == 10;
 	10 != 9;
+	"foobar"
+	"foo bar"
+	[1, 2];
 	`
 
 	tests := []struct {
@@ -84,6 +87,7 @@ func TestNextToken(t *testing.T) {
 		{token.SEMICOLON, ";"},
 		{token.COMMENT, " inline comment"},
 		{token.BANG, "!"},
+		{token.PERCENT, "%"},
 		{token.MINUS, "-"},
 		{token.SLASH, "/"},
 		{token.ASTERISK, "*"},
@@ -132,6 +136,14 @@ func TestNextToken(t *testing.T) {
 		{token.NOT_EQ, "!="},
 		{token.INT, "9"},
 		{token.SEMICOLON, ";"},
+		{token.STRING, "foobar"},
+		{token.STRING, "foo bar"},
+		{token.LBRACKET, "["},
+		{token.INT, "1"},
+		{token.COMMA, ","},
+		{token.INT, "2"},
+		{token.RBRACKET, "]"},
+		{token.SEMICOLON, ";"},
 		{token.EOF, ""},
 	}
 
@@ -142,11 +154,11 @@ func TestNextToken(t *testing.T) {
 
 		if tok.Type != tt.expectedType {
 			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
-			i, tt.expectedType, tok.Type)
+				i, tt.expectedType, tok.Type)
 		}
 		if tok.Literal != tt.expectedLiteral {
 			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
-			i, tt.expectedLiteral, tok.Literal)
+				i, tt.expectedLiteral, tok.Literal)
 		}
 	}
 

@@ -3,7 +3,7 @@ package token
 type TokenType string
 
 type Token struct {
-	Type TokenType
+	Type    TokenType
 	Literal string
 }
 
@@ -12,22 +12,23 @@ const (
 	EOF     = "EOF"
 
 	// Identifiers + literals
-	IDENT = "IDENT" // add, foobar, x, y
-	INT   = "INT"   // 123456
-	FLOAT = "FLOAT" // 1.232
+	IDENT  = "IDENT" // add, foobar, x, y
+	INT    = "INT"   // 123456
+	FLOAT  = "FLOAT" // 1.232
 	STRING = "STRING"
 
 	// Operators
-	ASSIGN = "="
-	PLUS   = "+"
-	MINUS  = "-"
-	BANG   = "!"
+	ASSIGN   = "="
+	PLUS     = "+"
+	MINUS    = "-"
+	PERCENT  = "%"
+	BANG     = "!"
 	ASTERISK = "*"
 	SLASH    = "/"
 
 	// Comparisons
 	EQ     = "=="
-	NOT_EQ     = "!="
+	NOT_EQ = "!="
 	LT     = "<"
 	GT     = ">"
 
@@ -35,10 +36,12 @@ const (
 	COMMA     = ","
 	SEMICOLON = ";"
 
-	LPAREN = "("
-	RPAREN = ")"
-	LBRACE = "{"
-	RBRACE = "}"
+	LPAREN   = "("
+	RPAREN   = ")"
+	LBRACE   = "{"
+	RBRACE   = "}"
+	LBRACKET = "["
+	RBRACKET = "]"
 
 	COMMENT = "//"
 
@@ -53,16 +56,15 @@ const (
 	RETURN   = "RETURN"
 )
 
-
 // Jem: Would be cool to make this default lookup the token type in all caps??
 var keywords = map[string]TokenType{
-	"fn": FUNCTION,
-	"let": LET,
-	"true": TRUE,
-	"false": FALSE,
-	"if": IF,
-	"else": ELSE,
-	"elsif": ELSIF,
+	"fn":     FUNCTION,
+	"let":    LET,
+	"true":   TRUE,
+	"false":  FALSE,
+	"if":     IF,
+	"else":   ELSE,
+	"elsif":  ELSIF,
 	"return": RETURN,
 }
 
