@@ -91,6 +91,11 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		params := node.Parameters
 		body := node.Body
 		return &object.Function{Parameters: params, Env: env, Body: body}
+		// JEM: You left off here. Need to implement a pure function literal
+	case *ast.PureFunctionLiteral:
+		params := node.Parameters
+		body := node.Body
+		return &object.PureFunction{Parameters: params, Env: env, Body: body}
 	case *ast.CallExpression:
 		function := Eval(node.Function, env)
 		if isError(function) {
@@ -477,6 +482,16 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		extendedEnv := extendFunctionEnv(fn, args)
 		evaluated := Eval(fn.Body, extendedEnv)
 		return unwrapReturnValue(evaluated)
+	case *object.PureFunction:
+		extendedEnv := extendPureFunctionEnv(fn, args)
+		var evaluated object.Object
+		if val, ok := fn.Get(args); ok {
+			evaluated = val
+		} else {
+			evaluated = Eval(fn.Body, extendedEnv)
+			fn.Set(args, evaluated)
+		}
+		return unwrapReturnValue(evaluated)
 	case *object.Builtin:
 		return fn.Fn(args...)
 	default:
@@ -486,6 +501,19 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 
 func extendFunctionEnv(
 	fn *object.Function,
+	args []object.Object,
+) *object.Environment {
+	env := object.NewEnclosedEnvironment(fn.Env)
+
+	for paramIdx, param := range fn.Parameters {
+		env.Set(param.Value, args[paramIdx])
+	}
+	return env
+}
+
+// JEM: Can you combine this function and the above one?
+func extendPureFunctionEnv(
+	fn *object.PureFunction,
 	args []object.Object,
 ) *object.Environment {
 	env := object.NewEnclosedEnvironment(fn.Env)

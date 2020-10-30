@@ -146,3 +146,47 @@ func (a *Array) Inspect() string {
 	return out.String()
 }
 func (a *Array) String() String { return String{Value: a.Inspect()} }
+
+type PureFunction struct {
+	Parameters []*ast.Identifier
+	Body       *ast.BlockStatement
+	Env        *Environment
+	Cache      map[string]Object
+}
+
+func (f *PureFunction) Type() ObjectType { return FUNCTION_OBJ }
+func (f *PureFunction) Inspect() string {
+	var out bytes.Buffer
+
+	params := []string{}
+	for _, p := range f.Parameters {
+		params = append(params, p.String())
+	}
+
+	out.WriteString("fn")
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") {\n")
+	out.WriteString(f.Body.String())
+	out.WriteString("\n}")
+
+	return out.String()
+}
+func (f *PureFunction) String() String { return String{Value: f.Inspect()} }
+func (f *PureFunction) Get(args []Object) (Object, bool) {
+	obj, ok := f.Cache[objectsToString(args)]
+	return obj, ok
+}
+
+func (f *PureFunction) Set(args []Object, val Object) Object {
+	f.Cache[objectsToString(args)] = val
+	return val
+}
+
+func objectsToString(args []Object) string {
+	var res string
+	for _, arg := range args {
+		res += "@" + arg.String().Value
+	}
+	return res
+}
