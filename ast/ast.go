@@ -158,7 +158,7 @@ type CommentLiteral struct {
 
 func (com *CommentLiteral) expressionNode()      {}
 func (com *CommentLiteral) TokenLiteral() string { return com.Token.Literal }
-func (com *CommentLiteral) String() string       {
+func (com *CommentLiteral) String() string {
 	return "//" + com.Token.Literal
 }
 
@@ -169,7 +169,7 @@ type StringLiteral struct {
 
 func (str *StringLiteral) expressionNode()      {}
 func (str *StringLiteral) TokenLiteral() string { return str.Token.Literal }
-func (str *StringLiteral) String() string       {
+func (str *StringLiteral) String() string {
 	return "\"" + str.Token.Literal + "\""
 }
 
@@ -268,6 +268,31 @@ func (fl *FunctionLiteral) String() string {
 	out.WriteString(strings.Join(params, ", "))
 	out.WriteString(") ")
 	out.WriteString(fl.Body.String())
+
+	return out.String()
+}
+
+type PureFunctionLiteral struct {
+	Token      token.Token // The 'pfn' token
+	Parameters []*Identifier
+	Body       *BlockStatement
+}
+
+func (pfl *PureFunctionLiteral) expressionNode()      {}
+func (pfl *PureFunctionLiteral) TokenLiteral() string { return pfl.Token.Literal }
+func (pfl *PureFunctionLiteral) String() string {
+	var out bytes.Buffer
+
+	params := []string{}
+	for _, p := range pfl.Parameters {
+		params = append(params, p.String())
+	}
+
+	out.WriteString(pfl.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") ")
+	out.WriteString(pfl.Body.String())
 
 	return out.String()
 }

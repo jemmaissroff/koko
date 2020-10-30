@@ -46,19 +46,21 @@ const (
 	COMMENT = "//"
 
 	// Keywords
-	FUNCTION = "FUNCTION"
-	LET      = "LET"
-	TRUE     = "TRUE"
-	FALSE    = "FALSE"
-	IF       = "IF"
-	ELSE     = "ELSE"
-	ELSIF    = "ELSIF"
-	RETURN   = "RETURN"
+	FUNCTION      = "FUNCTION"
+	PURE_FUNCTION = "PURE_FUNCTION"
+	LET           = "LET"
+	TRUE          = "TRUE"
+	FALSE         = "FALSE"
+	IF            = "IF"
+	ELSE          = "ELSE"
+	ELSIF         = "ELSIF"
+	RETURN        = "RETURN"
 )
 
 // Jem: Would be cool to make this default lookup the token type in all caps??
 var keywords = map[string]TokenType{
 	"fn":     FUNCTION,
+	"pfn":    PURE_FUNCTION,
 	"let":    LET,
 	"true":   TRUE,
 	"false":  FALSE,
