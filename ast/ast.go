@@ -158,7 +158,7 @@ type CommentLiteral struct {
 
 func (com *CommentLiteral) expressionNode()      {}
 func (com *CommentLiteral) TokenLiteral() string { return com.Token.Literal }
-func (com *CommentLiteral) String() string       {
+func (com *CommentLiteral) String() string {
 	return "//" + com.Token.Literal
 }
 
@@ -169,7 +169,7 @@ type StringLiteral struct {
 
 func (str *StringLiteral) expressionNode()      {}
 func (str *StringLiteral) TokenLiteral() string { return str.Token.Literal }
-func (str *StringLiteral) String() string       {
+func (str *StringLiteral) String() string {
 	return "\"" + str.Token.Literal + "\""
 }
 
@@ -292,6 +292,28 @@ func (ce *CallExpression) String() string {
 	out.WriteString("(")
 	out.WriteString(strings.Join(args, ", "))
 	out.WriteString(")")
+
+	return out.String()
+}
+
+type ArrayLiteral struct {
+	Token    token.Token
+	Elements []Expression
+}
+
+func (al *ArrayLiteral) expressionNode()      {}
+func (al *ArrayLiteral) TokenLiteral() string { return al.Token.Literal }
+func (al *ArrayLiteral) String() string {
+	var out bytes.Buffer
+
+	elements := []string{}
+	for _, el := range al.Elements {
+		elements = append(elements, el.String())
+	}
+
+	out.WriteString("[")
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteString("]")
 
 	return out.String()
 }

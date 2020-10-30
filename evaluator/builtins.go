@@ -63,6 +63,8 @@ var builtins = map[string]*object.Builtin{
 				} else {
 					return &object.Integer{Value: 0}
 				}
+			case *object.String:
+				return &object.Integer{Value: int64(len(args[0].String().Value))}
 			default:
 				return newError("can't cast %s to an int", arg.Type())
 			}

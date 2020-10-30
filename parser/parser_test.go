@@ -12,7 +12,7 @@ func TestComments(t *testing.T) {
 	let x = 5; // comment
 	// another comment
 	1 + 2
-	`;
+	`
 
 	l := lexer.New(input)
 	p := New(l)
@@ -21,7 +21,7 @@ func TestComments(t *testing.T) {
 
 	if len(program.Statements) != 4 {
 		t.Fatalf("program.Statements does not contain 4 statements. got=%d",
-		len(program.Statements))
+			len(program.Statements))
 	}
 
 	comm := program.Statements[1].String()
@@ -844,7 +844,6 @@ func testFloatLiteral(t *testing.T, fl ast.Expression, value float64) bool {
 	return true
 }
 
-
 func testIdentifier(t *testing.T, exp ast.Expression, value string) bool {
 	ident, ok := exp.(*ast.Identifier)
 	if !ok {
@@ -898,4 +897,23 @@ func checkParserErrors(t *testing.T, p *Parser) {
 		t.Errorf("parser error: %q", msg)
 	}
 	t.FailNow()
+}
+
+func TestParsingArrayLiterals(t *testing.T) {
+	input := "[1, 2 * 2, 3 + 3]"
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	array, ok := stmt.Expression.(*ast.ArrayLiteral)
+	if !ok {
+		t.Fatalf("exp not ast.ArrayLiteral. got=%T", stmt.Expression)
+	}
+	if len(array.Elements) != 3 {
+		t.Fatalf("len(array.Elements) not 3. got=%d", len(array.Elements))
+	}
+	testIntegerLiteral(t, array.Elements[0], 1)
+	testInfixExpression(t, array.Elements[1], 2, "*", 2)
+	testInfixExpression(t, array.Elements[2], 3, "+", 3)
 }
