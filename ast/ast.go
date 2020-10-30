@@ -272,6 +272,31 @@ func (fl *FunctionLiteral) String() string {
 	return out.String()
 }
 
+type PureFunctionLiteral struct {
+	Token      token.Token // The 'pfn' token
+	Parameters []*Identifier
+	Body       *BlockStatement
+}
+
+func (pfl *PureFunctionLiteral) expressionNode()      {}
+func (pfl *PureFunctionLiteral) TokenLiteral() string { return pfl.Token.Literal }
+func (pfl *PureFunctionLiteral) String() string {
+	var out bytes.Buffer
+
+	params := []string{}
+	for _, p := range pfl.Parameters {
+		params = append(params, p.String())
+	}
+
+	out.WriteString(pfl.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") ")
+	out.WriteString(pfl.Body.String())
+
+	return out.String()
+}
+
 type CallExpression struct {
 	Token     token.Token // The '(' token
 	Function  Expression  // Identifier or FunctionLiteral

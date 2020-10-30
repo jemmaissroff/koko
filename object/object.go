@@ -154,6 +154,11 @@ type PureFunction struct {
 	Cache      map[string]Object
 }
 
+func NewPureFunction(parameters []*ast.Identifier, env *Environment, body *ast.BlockStatement) *PureFunction {
+	cache := make(map[string]Object)
+	return &PureFunction{Parameters: parameters, Body: body, Env: env, Cache: cache}
+}
+
 func (f *PureFunction) Type() ObjectType { return FUNCTION_OBJ }
 func (f *PureFunction) Inspect() string {
 	var out bytes.Buffer
