@@ -228,6 +228,13 @@ func TestIfElseExpressions(t *testing.T) {
 	}
 }
 
+func TestIfExpressionWithError(t *testing.T) {
+	evaluated := testEval("if (\"hello\" > 0) { 10 } else { 20 }")
+	if !isError(evaluated) {
+		t.Errorf("error did not propegate out of conditional")
+	}
+}
+
 func testNilObject(t *testing.T, obj object.Object) bool {
 	if obj != NIL {
 		t.Errorf("object is not NULL. got=%T (%+v)", obj, obj)
