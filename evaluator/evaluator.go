@@ -5,6 +5,7 @@ import (
 	"monkey/object"
 
 	"fmt"
+	"math"
 )
 
 var (
@@ -282,6 +283,8 @@ func evalFloatInfixExpression(operator string, left object.Object, right object.
 		return nativeBoolToBooleanObject(lVal == rVal)
 	case "!=":
 		return nativeBoolToBooleanObject(lVal != rVal)
+	case "%":
+		return &object.Float{Value: math.Mod(lVal, rVal)}
 	default:
 		return newError("unknown operator for FLOAT %v", operator)
 	}
