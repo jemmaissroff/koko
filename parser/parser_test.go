@@ -12,7 +12,7 @@ func TestComments(t *testing.T) {
 	let x = 5; // comment
 	// another comment
 	1 + 2
-	`;
+	`
 
 	l := lexer.New(input)
 	p := New(l)
@@ -21,7 +21,7 @@ func TestComments(t *testing.T) {
 
 	if len(program.Statements) != 4 {
 		t.Fatalf("program.Statements does not contain 4 statements. got=%d",
-		len(program.Statements))
+			len(program.Statements))
 	}
 
 	comm := program.Statements[1].String()
@@ -843,7 +843,6 @@ func testFloatLiteral(t *testing.T, fl ast.Expression, value float64) bool {
 
 	return true
 }
-
 
 func testIdentifier(t *testing.T, exp ast.Expression, value string) bool {
 	ident, ok := exp.(*ast.Identifier)
