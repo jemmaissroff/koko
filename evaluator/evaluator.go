@@ -102,8 +102,23 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 
 		return applyFunction(function, args)
+	case *ast.ArrayLiteral:
+		elements := evalExpressions(node.Elements, env)
+		if len(elements) == 1 && isError(elements[0]) {
+			return elements[0]
+		}
+		return &object.Array{Elements: elements}
+	case *ast.IndexExpression:
+		left := Eval(node.Left, env)
+		if isError(left) {
+			return left
+		}
+		index := Eval(node.Index, env)
+		if isError(index) {
+			return index
+		}
+		return evalIndexExpression(left, index)
 	}
-
 	return nil
 }
 
@@ -153,6 +168,15 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 
 func evalInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	switch {
+	case left.Type() == object.ARRAY_OBJ:
+		switch {
+		case right.Type() == object.ARRAY_OBJ:
+			return evalArrayInfixExpression(operator, left, right)
+		case operator == "==":
+			return FALSE
+		case operator == "!=":
+			return TRUE
+		}
 	case left.Type() == object.STRING_OBJ:
 		switch {
 		case right.Type() == object.STRING_OBJ:
@@ -291,6 +315,47 @@ func addStrings(left object.Object, right object.Object) *object.String {
 	return &object.String{Value: left.String().Value + right.String().Value}
 }
 
+func evalArrayInfixExpression(operator string, left object.Object, right object.Object) object.Object {
+	lEls := left.(*object.Array).Elements
+	rEls := right.(*object.Array).Elements
+
+	switch operator {
+	case "+":
+		return addElements(lEls, rEls)
+	case "==":
+		return nativeBoolToBooleanObject(elComparison(lEls, rEls))
+	case "!=":
+		return nativeBoolToBooleanObject(!elComparison(lEls, rEls))
+	default:
+		return NIL
+	}
+}
+
+func addElements(left []object.Object, right []object.Object) *object.Array {
+	elements := make([]object.Object, 0, len(left)+len(right))
+	for _, el := range left {
+		elements = append(elements, el)
+	}
+	for _, el := range right {
+		elements = append(elements, el)
+	}
+	return &object.Array{Elements: elements}
+}
+
+func elComparison(left []object.Object, right []object.Object) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i, l := range left {
+		// JEM: Inspect() isn't actually going to work here, need to fix
+		if l.Inspect() != right[i].Inspect() {
+			fmt.Printf("left right %v, %v", l, right[i])
+			return false
+		}
+	}
+	return true
+}
+
 // JEM: This is pretty neat
 func evalBangOperatorExpression(right object.Object) object.Object {
 	return nativeBoolToBooleanObject(!isTruthy(right))
@@ -380,6 +445,27 @@ func evalExpressions(
 	}
 
 	return result
+}
+
+func evalIndexExpression(left, index object.Object) object.Object {
+	if left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ {
+		return evalArrayIndexExpression(left, index)
+	} else {
+		return newError("index operator not supported: %s", left.Type())
+	}
+}
+
+func evalArrayIndexExpression(array, index object.Object) object.Object {
+	arrayObject := array.(*object.Array)
+	idx := index.(*object.Integer).Value
+	max := int64(len(arrayObject.Elements) - 1)
+
+	// Out of bounds
+	if idx < 0 || idx > max {
+		return NIL
+	}
+
+	return arrayObject.Elements[idx]
 }
 
 func applyFunction(fn object.Object, args []object.Object) object.Object {
