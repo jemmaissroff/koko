@@ -1,6 +1,9 @@
 package evaluator
 
-import "monkey/object"
+import (
+	"math/rand"
+	"monkey/object"
+)
 
 var builtins = map[string]*object.Builtin{
 	"len": &object.Builtin{
@@ -150,6 +153,16 @@ var builtins = map[string]*object.Builtin{
 				return &object.Array{Elements: newElements}
 			}
 			return NIL
+		},
+	},
+	"rando": &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return newError("wrong number of arguments. got=%d, want=1",
+					len(args))
+			}
+			arg := args[0].(*object.Integer)
+			return &object.Integer{Value: int64(rand.Intn(int(arg.Value)))}
 		},
 	},
 }
