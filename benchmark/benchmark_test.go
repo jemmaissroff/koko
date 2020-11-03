@@ -60,9 +60,16 @@ func BenchmarkMergeSort(b *testing.B) {
 
 	let RAND_CONST = 10000
 	let random_array = fn(len) { if (len == 0) { [] } else { [rando(RAND_CONST)] + random_array(len - 1) } }
-        let ra = random_array(1000)
+    let ra = random_array(200)
 
-	let repeat_merge_sort_with_modifications = fn(repeats, arr) { if (repeats != 0) { let mod_ind = rando(len(ra)) repeat_merge_sort_with_modifications(repeats - 1, merge_sort(get_n_elements(ra, 0, mod_ind) + [rando(RAND_CONST)] + get_n_elements(ra, mod_ind, len(ra) - mod_ind))) }
+	let repeat_merge_sort_with_modifications = fn(repeats, arr) {
+		if (repeats != 0) {
+		   let mod_ind = rando(len(ra))
+		   merge_sort(arr)
+		   repeat_merge_sort_with_modifications(repeats - 1, get_n_elements(ra, 0, mod_ind) + [rando(RAND_CONST)] + get_n_elements(ra, mod_ind, len(ra) - mod_ind))
+	   }
+   }
+   repeat_merge_sort_with_modifications(200, ra)
 	`)
 	for i := 0; i < b.N; i++ {
 		evaluator.Eval(program, env)
@@ -71,16 +78,23 @@ func BenchmarkMergeSort(b *testing.B) {
 
 func BenchmarkPureMergeSort(b *testing.B) {
 	program, env := testBuild(`
-	let get_n_elements = pfn(arr, offset, number_of_elements) { if (number_of_elements == 0) { [] } else { [arr[offset]] + get_n_elements(arr, offset + 1, number_of_elements - 1) } }
-	let merge_elements = pfn(res_lower, res_upper) { if (len(res_lower) == 0) { if (len(res_upper) == 0) { [] } else { res_upper } } else { if (len(res_upper) == 0) { res_lower } else { if (first(res_upper) < first(res_lower)) { [first(res_upper)] + merge_elements(res_lower, rest(res_upper)) } else { [first(res_lower)] + merge_elements(res_upper, rest(res_lower)) } } } }
+	let get_n_elements = fn(arr, offset, number_of_elements) { if (number_of_elements == 0) { [] } else { [arr[offset]] + get_n_elements(arr, offset + 1, number_of_elements - 1) } }
+	let merge_elements = fn(res_lower, res_upper) { if (len(res_lower) == 0) { if (len(res_upper) == 0) { [] } else { res_upper } } else { if (len(res_upper) == 0) { res_lower } else { if (first(res_upper) < first(res_lower)) { [first(res_upper)] + merge_elements(res_lower, rest(res_upper)) } else { [first(res_lower)] + merge_elements(res_upper, rest(res_lower)) } } } }
 
 	let merge_sort = pfn(arr) { if (len(arr) == 1) { return arr } else { let half = int(len(arr)/2); let res_lower = get_n_elements(arr, 0, half); let res_upper = get_n_elements(arr, half, len(arr) - half); merge_elements(merge_sort(res_lower), merge_sort(res_upper)) } }
 
 	let RAND_CONST = 10000
 	let random_array = fn(len) { if (len == 0) { [] } else { [rando(RAND_CONST)] + random_array(len - 1) } }
-        let ra = random_array(1000)
+    let ra = random_array(200)
 
-	let repeat_merge_sort_with_modifications = fn(repeats, arr) { if (repeats != 0) { let mod_ind = rando(len(ra)) repeat_merge_sort_with_modifications(repeats - 1, merge_sort(get_n_elements(ra, 0, mod_ind) + [rando(RAND_CONST)] + get_n_elements(ra, mod_ind, len(ra) - mod_ind))) }
+	let repeat_merge_sort_with_modifications = fn(repeats, arr) {
+		 if (repeats != 0) {
+			let mod_ind = rando(len(ra))
+			merge_sort(arr)
+			repeat_merge_sort_with_modifications(repeats - 1, get_n_elements(ra, 0, mod_ind) + [rando(RAND_CONST)] + get_n_elements(ra, mod_ind, len(ra) - mod_ind))
+		}
+	}
+	repeat_merge_sort_with_modifications(200, ra)
 	`)
 	for i := 0; i < b.N; i++ {
 		evaluator.Eval(program, env)
