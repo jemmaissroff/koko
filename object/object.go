@@ -180,7 +180,6 @@ func (f *PureFunction) Inspect() string {
 func (f *PureFunction) String() String { return String{Value: f.Inspect()} }
 func (f *PureFunction) Get(args []Object) (Object, bool) {
 	obj, ok := f.Cache[objectsToString(args)]
-	//println("hello", objectsToString(args), ok)
 	return obj, ok
 }
 
