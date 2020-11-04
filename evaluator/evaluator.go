@@ -357,7 +357,6 @@ func elComparison(left []object.Object, right []object.Object) bool {
 	for i, l := range left {
 		// JEM: Inspect() isn't actually going to work here, need to fix
 		if l.Inspect() != right[i].Inspect() {
-			fmt.Printf("left right %v, %v", l, right[i])
 			return false
 		}
 	}

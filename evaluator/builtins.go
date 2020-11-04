@@ -8,10 +8,10 @@ import (
 var builtins = map[string]*object.Builtin{
 	"len": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
-					len(args))
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
 			}
+
 			var value int64
 			switch args[0].(type) {
 			case *object.Array:
@@ -24,9 +24,8 @@ var builtins = map[string]*object.Builtin{
 	},
 	"type": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
-					len(args))
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
 			}
 
 			return &object.String{Value: string(args[0].Type())}
@@ -34,9 +33,8 @@ var builtins = map[string]*object.Builtin{
 	},
 	"string": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
-					len(args))
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
 			}
 
 			// JEM: WHy can't this be:
@@ -46,9 +44,8 @@ var builtins = map[string]*object.Builtin{
 	},
 	"bool": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
-					len(args))
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
 			}
 
 			return &object.Boolean{Value: isTruthy(args[0])}
@@ -56,9 +53,8 @@ var builtins = map[string]*object.Builtin{
 	},
 	"int": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
-					len(args))
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
 			}
 
 			switch arg := args[0].(type) {
@@ -81,10 +77,10 @@ var builtins = map[string]*object.Builtin{
 	},
 	"first": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
-					len(args))
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
 			}
+
 			if args[0].Type() != object.ARRAY_OBJ {
 				return newError("argument to `first` must be ARRAY, got %s", args[0].Type())
 			}
@@ -98,10 +94,10 @@ var builtins = map[string]*object.Builtin{
 	},
 	"last": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
-					len(args))
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
 			}
+
 			if args[0].Type() != object.ARRAY_OBJ {
 				return newError("argument to `first` must be ARRAY, got %s", args[0].Type())
 			}
@@ -116,9 +112,8 @@ var builtins = map[string]*object.Builtin{
 	},
 	"rest": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
-					len(args))
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
 			}
 			if args[0].Type() != object.ARRAY_OBJ {
 				return newError("argument to `first` must be ARRAY, got %s", args[0].Type())
@@ -136,10 +131,10 @@ var builtins = map[string]*object.Builtin{
 	},
 	"push": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 2 {
-				return newError("wrong number of arguments. got=%d, want=1",
-					len(args))
+			if err := validateNumberOfArgs(2, args); err != NIL {
+				return err
 			}
+
 			if args[0].Type() != object.ARRAY_OBJ {
 				return newError("argument to `first` must be ARRAY, got %s", args[0].Type())
 			}
@@ -155,14 +150,65 @@ var builtins = map[string]*object.Builtin{
 			return NIL
 		},
 	},
+	"take": &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if err := validateNumberOfArgs(2, args); err != NIL {
+				return err
+			}
+
+			if args[0].Type() != object.ARRAY_OBJ {
+				return newError("argument to `take` must be ARRAY, got %s", args[0].Type())
+			}
+			if args[1].Type() != object.INTEGER_OBJ {
+				return newError("argument to `take` must be INTEGER, got %s", args[1].Type())
+			}
+
+			arr := args[0].(*object.Array)
+			takeNum := args[1].(*object.Integer).Value
+			if takeNum < 0 || takeNum >= int64(len(arr.Elements)) {
+				return newError("Invalid index %d for %v", takeNum, arr.Inspect())
+			}
+			return &object.Array{Elements: arr.Elements[0:takeNum]}
+		},
+	},
+	"drop": &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if err := validateNumberOfArgs(2, args); err != NIL {
+				return err
+			}
+
+			if args[0].Type() != object.ARRAY_OBJ {
+				return newError("argument to `take` must be ARRAY, got %s", args[0].Type())
+			}
+			if args[1].Type() != object.INTEGER_OBJ {
+				return newError("argument to `take` must be INTEGER, got %s", args[1].Type())
+			}
+
+			arr := args[0].(*object.Array)
+			takeNum := args[1].(*object.Integer).Value
+			if takeNum < 0 || takeNum > int64(len(arr.Elements)) {
+				return newError("Invalid index %d for %v", takeNum, arr.Inspect())
+			}
+			return &object.Array{Elements: arr.Elements[takeNum:]}
+		},
+	},
 	"rando": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if len(args) != 1 {
-				return newError("wrong number of arguments. got=%d, want=1",
-					len(args))
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
 			}
+
 			arg := args[0].(*object.Integer)
 			return &object.Integer{Value: int64(rand.Intn(int(arg.Value)))}
 		},
 	},
+}
+
+func validateNumberOfArgs(length int, args []object.Object) object.Object {
+	if len(args) != length {
+		return newError("wrong number of arguments. got=%d, want=%d",
+			len(args), length)
+	}
+
+	return NIL
 }
