@@ -482,10 +482,16 @@ func evalArrayIndexExpression(array, index object.Object) object.Object {
 func applyFunction(fn object.Object, args []object.Object) object.Object {
 	switch fn := fn.(type) {
 	case *object.Function:
+		if len(fn.Parameters) != len(args) {
+			return newError("Supplied %v args, but %v are expected", len(args), len(fn.Parameters))
+		}
 		extendedEnv := extendFunctionEnv(fn, args)
 		evaluated := Eval(fn.Body, extendedEnv)
 		return unwrapReturnValue(evaluated)
 	case *object.PureFunction:
+		if len(fn.Parameters) != len(args) {
+			return newError("Supplied %v args, but %v are expected", len(args), len(fn.Parameters))
+		}
 		extendedEnv := extendPureFunctionEnv(fn, args)
 		var evaluated object.Object
 		if val, ok := fn.Get(args); ok {

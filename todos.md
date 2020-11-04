@@ -1,1 +1,3 @@
-After a let in the repl print the value assigned, or just the whole thing
+Allow newlines in repl
+Fix == for array comparison
+Get rid of repetitive function pfn code in evaluator
