@@ -128,6 +128,9 @@ func (p *Parser) peekError(t token.TokenType) {
 
 func (p *Parser) noPrefixParseFnError(t token.TokenType) {
 	msg := fmt.Sprintf("no prefix parse function for %s found", t)
+	if t == token.ASSIGN {
+		msg = "Missing let before `=` operator"
+	}
 	p.errors = append(p.errors, msg)
 }
 

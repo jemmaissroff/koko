@@ -98,6 +98,9 @@ func (l *Lexer) readIdentifier() string {
 	for isLetter(l.ch) {
 		l.readChar()
 	}
+	for isLetter(l.ch) || isDigit(l.ch) {
+		l.readChar()
+	}
 	return l.input[position:l.position]
 }
 
