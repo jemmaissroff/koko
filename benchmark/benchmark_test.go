@@ -64,9 +64,9 @@ func BenchmarkMergeSort(b *testing.B) {
 
 	let repeat_merge_sort_with_modifications = fn(repeats, arr) {
 		if (repeats != 0) {
-		   let mod_ind = rando(len(ra))
+		   let mod_ind = rando(len(arr))
 		   merge_sort(arr)
-		   repeat_merge_sort_with_modifications(repeats - 1, get_n_elements(ra, 0, mod_ind) + [rando(RAND_CONST)] + get_n_elements(ra, mod_ind, len(ra) - mod_ind))
+		   repeat_merge_sort_with_modifications(repeats - 1, get_n_elements(arr, 0, mod_ind) + [rando(RAND_CONST)] + get_n_elements(arr, mod_ind, len(arr) - mod_ind))
 	   }
    }
    repeat_merge_sort_with_modifications(200, ra)
@@ -88,10 +88,10 @@ func BenchmarkPureMergeSort(b *testing.B) {
     let ra = random_array(200)
 
 	let repeat_merge_sort_with_modifications = fn(repeats, arr) {
-		 if (repeats != 0) {
-			let mod_ind = rando(len(ra))
+		if (repeats != 0) {
+			let mod_ind = rando(len(arr))
 			merge_sort(arr)
-			repeat_merge_sort_with_modifications(repeats - 1, get_n_elements(ra, 0, mod_ind) + [rando(RAND_CONST)] + get_n_elements(ra, mod_ind, len(ra) - mod_ind))
+			repeat_merge_sort_with_modifications(repeats - 1, get_n_elements(arr, 0, mod_ind) + [rando(RAND_CONST)] + get_n_elements(arr, mod_ind, len(arr) - mod_ind))
 		}
 	}
 	repeat_merge_sort_with_modifications(200, ra)
