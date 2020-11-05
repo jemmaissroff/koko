@@ -62,7 +62,7 @@ func (i *Integer) String() String                     { return String{Value: i.I
 func (i *Integer) Float() Float                       { return Float{Value: float64(i.Value)} }
 func (i *Integer) GetMetadata() TraceMetadata         { return i.metadata }
 func (i *Integer) SetMetadata(metadata TraceMetadata) { i.metadata = metadata }
-func (i *Integer) Copy() Integer                      { return Integer{Value: i.Value, metadata: i.metadata} }
+func (i *Integer) Copy() Object                       { return &Integer{Value: i.Value, metadata: i.metadata} }
 
 type Float struct {
 	Value    float64
@@ -79,7 +79,7 @@ func (f *Float) Type() ObjectType                   { return FLOAT_OBJ }
 func (f *Float) String() String                     { return String{Value: f.Inspect()} }
 func (f *Float) GetMetadata() TraceMetadata         { return f.metadata }
 func (f *Float) SetMetadata(metadata TraceMetadata) { f.metadata = metadata }
-func (f *Float) Copy() Float                        { return Float{Value: f.Value, metadata: f.metadata} }
+func (f *Float) Copy() Object                       { return &Float{Value: f.Value, metadata: f.metadata} }
 
 type Boolean struct {
 	Value    bool
@@ -91,6 +91,7 @@ func (b *Boolean) Inspect() string                    { return fmt.Sprintf("%t",
 func (b *Boolean) String() String                     { return String{Value: b.Inspect()} }
 func (b *Boolean) GetMetadata() TraceMetadata         { return b.metadata }
 func (b *Boolean) SetMetadata(metadata TraceMetadata) { b.metadata = metadata }
+func (b *Boolean) Copy() Object                       { return &Boolean{Value: b.Value, metadata: b.metadata} }
 
 type String struct {
 	Value    string
@@ -102,6 +103,7 @@ func (s *String) Inspect() string                    { return s.Value }
 func (s *String) String() String                     { return *s }
 func (s *String) GetMetadata() TraceMetadata         { return s.metadata }
 func (s *String) SetMetadata(metadata TraceMetadata) { s.metadata = metadata }
+func (s *String) Copy() Object                       { return &String{Value: s.Value, metadata: s.metadata} }
 
 type Return struct {
 	Value    Object
@@ -113,6 +115,7 @@ func (r *Return) Inspect() string                    { return fmt.Sprintf("%v", 
 func (r *Return) String() String                     { return String{Value: r.Inspect()} }
 func (r *Return) GetMetadata() TraceMetadata         { return r.metadata }
 func (r *Return) SetMetadata(metadata TraceMetadata) { r.metadata = metadata }
+func (r *Return) Copy() Object                       { return &Return{Value: r.Value, metadata: r.metadata} }
 
 type Nil struct {
 	metadata TraceMetadata
@@ -123,6 +126,7 @@ func (n *Nil) Inspect() string                    { return "nil" }
 func (n *Nil) String() String                     { return String{Value: n.Inspect()} }
 func (n *Nil) GetMetadata() TraceMetadata         { return n.metadata }
 func (n *Nil) SetMetadata(metadata TraceMetadata) { n.metadata = metadata }
+func (n *Nil) Copy() Object                       { return &Nil{metadata: n.metadata} }
 
 type Error struct {
 	Message  string
@@ -137,6 +141,7 @@ func (e *Error) Inspect() string                    { return "ERROR: " + e.Messa
 func (e *Error) String() String                     { return String{Value: e.Inspect()} }
 func (e *Error) GetMetadata() TraceMetadata         { return e.metadata }
 func (e *Error) SetMetadata(metadata TraceMetadata) { e.metadata = metadata }
+func (e *Error) Copy() Object                       { return &Error{Message: e.Message, metadata: e.metadata} }
 
 type Function struct {
 	Parameters []*ast.Identifier
@@ -166,6 +171,9 @@ func (f *Function) Inspect() string {
 func (f *Function) String() String                     { return String{Value: f.Inspect()} }
 func (f *Function) GetMetadata() TraceMetadata         { return f.metadata }
 func (f *Function) SetMetadata(metadata TraceMetadata) { f.metadata = metadata }
+func (f *Function) Copy() Object {
+	return &Function{Parameters: f.Parameters, Body: f.Body, Env: f.Env, metadata: f.metadata}
+}
 
 type BuiltinFunction func(args ...Object) Object
 
@@ -179,6 +187,7 @@ func (b *Builtin) Inspect() string                    { return "builtin function
 func (b *Builtin) String() String                     { return String{Value: b.Inspect()} }
 func (b *Builtin) GetMetadata() TraceMetadata         { return b.metadata }
 func (b *Builtin) SetMetadata(metadata TraceMetadata) { b.metadata = metadata }
+func (b *Builtin) Copy() Object                       { return &Builtin{Fn: b.Fn, metadata: b.metadata} }
 
 type Array struct {
 	Elements []Object
@@ -201,6 +210,7 @@ func (a *Array) Inspect() string {
 func (a *Array) String() String                     { return String{Value: a.Inspect()} }
 func (a *Array) GetMetadata() TraceMetadata         { return a.metadata }
 func (a *Array) SetMetadata(metadata TraceMetadata) { a.metadata = metadata }
+func (a *Array) Copy() Object                       { return &Array{Elements: a.Elements, metadata: a.metadata} }
 
 type PureFunction struct {
 	Parameters []*ast.Identifier
@@ -246,6 +256,9 @@ func (f *PureFunction) Set(args []Object, val Object) Object {
 
 func (f *PureFunction) GetMetadata() TraceMetadata         { return f.metadata }
 func (f *PureFunction) SetMetadata(metadata TraceMetadata) { f.metadata = metadata }
+func (f *PureFunction) Copy() Object {
+	return &PureFunction{Parameters: f.Parameters, Body: f.Body, Cache: f.Cache, Env: f.Env, metadata: f.metadata}
+}
 
 func objectsToString(args []Object) string {
 	var res string

@@ -404,9 +404,7 @@ func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Obje
 		res.SetMetadata(object.MergeDependencies(res.GetMetadata(), condition.GetMetadata()))
 		return res
 	} else {
-		// TODO (Peter fix this!!!!)
-		// if all nils are same this is baddd!!!!!
-		res := NIL
+		res := NIL.Copy()
 		res.SetMetadata(condition.GetMetadata())
 		return res
 	}
@@ -508,7 +506,7 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		for i, a := range args {
 			deps := make(map[int]bool)
 			deps[i] = true
-			traceableArgs[i] = a
+			traceableArgs[i] = a.Copy()
 			fmt.Printf("parg b: %+v\n", a)
 			traceableArgs[i].SetMetadata(object.TraceMetadata{Dependencies: deps})
 			fmt.Printf("parg after: %+v\n", a)
