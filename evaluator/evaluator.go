@@ -237,29 +237,33 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 func evalIntegerInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	lVal := left.(*object.Integer).Value
 	rVal := right.(*object.Integer).Value
+	var res object.Object
 
 	switch operator {
 	case "+":
-		return &object.Integer{Value: lVal + rVal}
+		res = &object.Integer{Value: lVal + rVal}
 	case "-":
-		return &object.Integer{Value: lVal - rVal}
+		res = &object.Integer{Value: lVal - rVal}
 	case "*":
-		return &object.Integer{Value: lVal * rVal}
+		// TODO (Peter) if one number is actually zero we only need to depend on it!
+		res = &object.Integer{Value: lVal * rVal}
 	case "/":
-		return evalFloatInfixExpression(operator, intToFloat(left), intToFloat(right))
+		res = evalFloatInfixExpression(operator, intToFloat(left), intToFloat(right))
 	case "<":
-		return nativeBoolToBooleanObject(lVal < rVal)
+		res = nativeBoolToBooleanObject(lVal < rVal)
 	case ">":
-		return nativeBoolToBooleanObject(lVal > rVal)
+		res = nativeBoolToBooleanObject(lVal > rVal)
 	case "==":
-		return nativeBoolToBooleanObject(lVal == rVal)
+		res = nativeBoolToBooleanObject(lVal == rVal)
 	case "!=":
-		return nativeBoolToBooleanObject(lVal != rVal)
+		res = nativeBoolToBooleanObject(lVal != rVal)
 	case "%":
-		return &object.Integer{Value: lVal % rVal}
+		res = &object.Integer{Value: lVal % rVal}
 	default:
 		return newError("unknown operator for INTEGER %v", operator)
 	}
+	res.SetMetadata(object.MergeDependencies(left.GetMetadata(), right.GetMetadata()))
+	return res
 }
 
 func evalFloatInfixExpression(operator string, left object.Object, right object.Object) object.Object {
@@ -392,11 +396,19 @@ func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Obje
 	}
 
 	if isTruthy(condition) {
-		return Eval(ie.Consequence, env)
+		res := Eval(ie.Consequence, env)
+		res.SetMetadata(object.MergeDependencies(res.GetMetadata(), condition.GetMetadata()))
+		return res
 	} else if ie.Alternative != nil {
-		return Eval(ie.Alternative, env)
+		res := Eval(ie.Alternative, env)
+		res.SetMetadata(object.MergeDependencies(res.GetMetadata(), condition.GetMetadata()))
+		return res
 	} else {
-		return NIL
+		// TODO (Peter fix this!!!!)
+		// if all nils are same this is baddd!!!!!
+		res := NIL
+		res.SetMetadata(condition.GetMetadata())
+		return res
 	}
 }
 
@@ -491,7 +503,18 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		if len(fn.Parameters) != len(args) {
 			return newError("Supplied %v args, but %v are expected", len(args), len(fn.Parameters))
 		}
-		extendedEnv := extendPureFunctionEnv(fn, args)
+		// strip the old metadata off of the incoming params
+		traceableArgs := make([]object.Object, len(fn.Parameters))
+		for i, a := range args {
+			deps := make(map[int]bool)
+			deps[i] = true
+			traceableArgs[i] = a
+			fmt.Printf("parg b: %+v\n", a)
+			traceableArgs[i].SetMetadata(object.TraceMetadata{Dependencies: deps})
+			fmt.Printf("parg after: %+v\n", a)
+		}
+
+		extendedEnv := extendPureFunctionEnv(fn, traceableArgs)
 		var evaluated object.Object
 		if val, ok := fn.Get(args); ok {
 			evaluated = val
@@ -499,7 +522,20 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 			evaluated = Eval(fn.Body, extendedEnv)
 			fn.Set(args, evaluated)
 		}
-		return unwrapReturnValue(evaluated)
+		fmt.Printf("deps: %+v\n", evaluated.GetMetadata())
+		res := unwrapReturnValue(evaluated)
+		// now we assign our dependencies for the function call itself
+		// let b = pfn(x, y) { if (x % 2 == 0) { a(x, 2, y) } else { 1 } }
+		fnMetadata := res.GetMetadata()
+		callMetadata := object.TraceMetadata{}
+		for i, a := range args {
+			if obj, ok := fnMetadata.Dependencies[i]; ok && obj == true {
+				fmt.Printf("arg: %+v\n", a)
+				callMetadata = object.MergeDependencies(callMetadata, a.GetMetadata())
+			}
+		}
+		res.SetMetadata(callMetadata)
+		return res
 	case *object.Builtin:
 		return fn.Fn(args...)
 	default:
