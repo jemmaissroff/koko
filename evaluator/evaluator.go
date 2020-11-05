@@ -507,9 +507,7 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 			deps := make(map[int]bool)
 			deps[i] = true
 			traceableArgs[i] = a.Copy()
-			fmt.Printf("parg b: %+v\n", a)
 			traceableArgs[i].SetMetadata(object.TraceMetadata{Dependencies: deps})
-			fmt.Printf("parg after: %+v\n", a)
 		}
 
 		extendedEnv := extendPureFunctionEnv(fn, traceableArgs)
