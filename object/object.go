@@ -216,13 +216,12 @@ type PureFunction struct {
 	Parameters []*ast.Identifier
 	Body       *ast.BlockStatement
 	Env        *Environment
-	Cache      map[string]Object
+	Cache      PartialCache
 	metadata   TraceMetadata
 }
 
 func NewPureFunction(parameters []*ast.Identifier, env *Environment, body *ast.BlockStatement) *PureFunction {
-	cache := make(map[string]Object)
-	return &PureFunction{Parameters: parameters, Body: body, Env: env, Cache: cache}
+	return &PureFunction{Parameters: parameters, Body: body, Env: env, Cache: PartialCache{}}
 }
 
 func (f *PureFunction) Type() ObjectType { return FUNCTION_OBJ }
@@ -245,12 +244,20 @@ func (f *PureFunction) Inspect() string {
 }
 func (f *PureFunction) String() String { return String{Value: f.Inspect()} }
 func (f *PureFunction) Get(args []Object) (Object, bool) {
-	obj, ok := f.Cache[objectsToString(args)]
+	argStrs := make([]string, len(args))
+	for i, a := range args {
+		argStrs[i] = a.String().Value
+	}
+	obj, ok := f.Cache.Get(argStrs)
 	return obj, ok
 }
 
-func (f *PureFunction) Set(args []Object, val Object) Object {
-	f.Cache[objectsToString(args)] = val
+func (f *PureFunction) Set(args []Object, deps map[int]bool, val Object) Object {
+	argStrs := make([]string, len(args))
+	for i, a := range args {
+		argStrs[i] = a.String().Value
+	}
+	f.Cache.Set(argStrs, deps, val)
 	return val
 }
 

@@ -245,8 +245,15 @@ func evalIntegerInfixExpression(operator string, left object.Object, right objec
 	case "-":
 		res = &object.Integer{Value: lVal - rVal}
 	case "*":
-		// TODO (Peter) if one number is actually zero we only need to depend on it!
 		res = &object.Integer{Value: lVal * rVal}
+		// Extra trick: If one number is actually zero we only need to depend on it!
+		if lVal == 0 {
+			res.SetMetadata(left.GetMetadata())
+			return res
+		} else if rVal == 0 {
+			res.SetMetadata(right.GetMetadata())
+			return res
+		}
 	case "/":
 		res = evalFloatInfixExpression(operator, intToFloat(left), intToFloat(right))
 	case "<":
@@ -270,61 +277,91 @@ func evalFloatInfixExpression(operator string, left object.Object, right object.
 	lVal := left.(*object.Float).Value
 	rVal := right.(*object.Float).Value
 
+	var res object.Object
 	switch operator {
 	case "+":
-		return &object.Float{Value: lVal + rVal}
+		res = &object.Float{Value: lVal + rVal}
 	case "-":
-		return &object.Float{Value: lVal - rVal}
+		res = &object.Float{Value: lVal - rVal}
 	case "*":
-		return &object.Float{Value: lVal * rVal}
+		res = &object.Float{Value: lVal * rVal}
+		// Extra trick: If one number is actually zero we only need to depend on it!
+		if lVal == 0 {
+			res.SetMetadata(left.GetMetadata())
+			return res
+		} else if rVal == 0 {
+			res.SetMetadata(right.GetMetadata())
+			return res
+		}
 	case "/":
-		return &object.Float{Value: lVal / rVal}
+		res = &object.Float{Value: lVal / rVal}
 	case "<":
-		return nativeBoolToBooleanObject(lVal < rVal)
+		res = nativeBoolToBooleanObject(lVal < rVal)
 	case ">":
-		return nativeBoolToBooleanObject(lVal > rVal)
+		res = nativeBoolToBooleanObject(lVal > rVal)
 	case "==":
-		return nativeBoolToBooleanObject(lVal == rVal)
+		res = nativeBoolToBooleanObject(lVal == rVal)
 	case "!=":
-		return nativeBoolToBooleanObject(lVal != rVal)
+		res = nativeBoolToBooleanObject(lVal != rVal)
 	case "%":
-		return &object.Float{Value: math.Mod(lVal, rVal)}
+		res = &object.Float{Value: math.Mod(lVal, rVal)}
 	default:
-		return newError("unknown operator for FLOAT %v", operator)
+		res = newError("unknown operator for FLOAT %v", operator)
 	}
+	res.SetMetadata(object.MergeDependencies(left.GetMetadata(), right.GetMetadata()))
+	return res
 }
 
 func intToFloat(integer object.Object) *object.Float {
-	return &object.Float{Value: float64(integer.(*object.Integer).Value)}
+	res := &object.Float{Value: float64(integer.(*object.Integer).Value)}
+	res.SetMetadata(integer.GetMetadata())
+	return res
 }
 
 func evalStringInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	lVal := left.(*object.String).Value
 	rVal := right.(*object.String).Value
 
+	var res object.Object
 	switch operator {
 	case "+":
+		// dependency assignment handled inside this function
 		return addStrings(left, right)
 	case "==":
-		return nativeBoolToBooleanObject(lVal == rVal)
+		res = nativeBoolToBooleanObject(lVal == rVal)
 	case "!=":
-		return nativeBoolToBooleanObject(lVal != rVal)
+		res = nativeBoolToBooleanObject(lVal != rVal)
 	default:
-		return NIL
+		res = NIL.Copy()
 	}
+	res.SetMetadata(object.MergeDependencies(left.GetMetadata(), right.GetMetadata()))
+	return res
 }
 
 func multiplyStrings(str object.Object, integer object.Object) *object.String {
-	res := ""
+	resStr := ""
 	strVal := str.(*object.String).Value
-	for i := 0; i < int(integer.(*object.Integer).Value); i++ {
-		res += strVal
+	repeats := int(integer.(*object.Integer).Value)
+
+	// a small dependecy optimization; if the integer is 0, the string is irrelevant
+	if repeats <= 0 {
+		res := &object.String{Value: ""}
+		res.SetMetadata(integer.GetMetadata())
+		return res
 	}
-	return &object.String{Value: res}
+
+	for i := 0; i < repeats; i++ {
+		resStr += strVal
+	}
+	res := &object.String{Value: resStr}
+	res.SetMetadata(object.MergeDependencies(str.GetMetadata(), integer.GetMetadata()))
+	return res
 }
 
 func addStrings(left object.Object, right object.Object) *object.String {
-	return &object.String{Value: left.String().Value + right.String().Value}
+	res := &object.String{Value: left.String().Value + right.String().Value}
+	res.SetMetadata(object.MergeDependencies(left.GetMetadata(), right.GetMetadata()))
+	return res
 }
 
 func evalArrayInfixExpression(operator string, left object.Object, right object.Object) object.Object {
@@ -369,7 +406,9 @@ func elComparison(left []object.Object, right []object.Object) bool {
 
 // JEM: This is pretty neat
 func evalBangOperatorExpression(right object.Object) object.Object {
-	return nativeBoolToBooleanObject(!isTruthy(right))
+	res := nativeBoolToBooleanObject(!isTruthy(right))
+	res.SetMetadata(right.GetMetadata())
+	return res
 }
 
 func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
@@ -512,21 +551,24 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 
 		extendedEnv := extendPureFunctionEnv(fn, traceableArgs)
 		var evaluated object.Object
+		// TODO (Peter) should we cache errors?
+		// Also this logic could be cleaned up a little
 		if val, ok := fn.Get(args); ok {
 			evaluated = val
 		} else {
+			// this code might be a little inconsistent w.r.t errors?
 			evaluated = Eval(fn.Body, extendedEnv)
-			fn.Set(args, evaluated)
+			fnMetadata := evaluated.GetMetadata()
+			fn.Set(args, fnMetadata.Dependencies, evaluated)
 		}
-		fmt.Printf("deps: %+v\n", evaluated.GetMetadata())
-		res := unwrapReturnValue(evaluated)
+		//fmt.Printf("deps: %+v\n", evaluated.GetMetadata())
 		// now we assign our dependencies for the function call itself
-		// let b = pfn(x, y) { if (x % 2 == 0) { a(x, 2, y) } else { 1 } }
+		// this code might be a little inconsistent w.r.t errors?
+		res := unwrapReturnValue(evaluated)
 		fnMetadata := res.GetMetadata()
 		callMetadata := object.TraceMetadata{}
 		for i, a := range args {
 			if obj, ok := fnMetadata.Dependencies[i]; ok && obj == true {
-				fmt.Printf("arg: %+v\n", a)
 				callMetadata = object.MergeDependencies(callMetadata, a.GetMetadata())
 			}
 		}
