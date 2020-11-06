@@ -561,7 +561,6 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 			fnMetadata := evaluated.GetMetadata()
 			fn.Set(args, fnMetadata.Dependencies, evaluated)
 		}
-		//fmt.Printf("deps: %+v\n", evaluated.GetMetadata())
 		// now we assign our dependencies for the function call itself
 		// this code might be a little inconsistent w.r.t errors?
 		res := unwrapReturnValue(evaluated)
