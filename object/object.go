@@ -24,11 +24,13 @@ const (
 )
 
 type TraceMetadata struct {
-	Dependencies map[int]bool
+	// TODO turn this into a more efficent format later (not a string)
+	// dep format = 3|2|1 = arg[3][2][1]
+	Dependencies map[string]bool
 }
 
 func MergeDependencies(a TraceMetadata, b TraceMetadata) TraceMetadata {
-	res := TraceMetadata{Dependencies: make(map[int]bool)}
+	res := TraceMetadata{Dependencies: make(map[string]bool)}
 	for k, v := range a.Dependencies {
 		if v == true {
 			res.Dependencies[k] = true
@@ -243,19 +245,39 @@ func (f *PureFunction) Inspect() string {
 	return out.String()
 }
 func (f *PureFunction) String() String { return String{Value: f.Inspect()} }
+
+func addArgToArgStrs(argStrs map[string]string, arg Object, prefix string) {
+	switch arg.(type) {
+	case *Array:
+		for i, e := range arg.(*Array).Elements {
+			// (TODO) Peter string concatenation here is a performance no no
+			// remove it
+			addArgToArgStrs(argStrs, e, prefix+"|"+strconv.Itoa(i))
+		}
+		break
+	default:
+		// note we should probably replace this inspect stuff with a real
+		// faster hash function at some point?
+		argStrs[prefix] = arg.Inspect()
+		break
+	}
+}
+
 func (f *PureFunction) Get(args []Object) (Object, bool) {
-	argStrs := make([]string, len(args))
+	argStrs := make(map[string]string)
 	for i, a := range args {
-		argStrs[i] = a.String().Value
+		keyPrefix := strconv.Itoa(i)
+		addArgToArgStrs(argStrs, a, keyPrefix)
 	}
 	obj, ok := f.Cache.Get(argStrs)
 	return obj, ok
 }
 
-func (f *PureFunction) Set(args []Object, deps map[int]bool, val Object) Object {
-	argStrs := make([]string, len(args))
+func (f *PureFunction) Set(args []Object, deps map[string]bool, val Object) Object {
+	argStrs := make(map[string]string)
 	for i, a := range args {
-		argStrs[i] = a.String().Value
+		keyPrefix := strconv.Itoa(i)
+		addArgToArgStrs(argStrs, a, keyPrefix)
 	}
 	f.Cache.Set(argStrs, deps, val)
 	return val

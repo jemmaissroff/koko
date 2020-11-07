@@ -3,6 +3,7 @@ package evaluator
 import (
 	"monkey/ast"
 	"monkey/object"
+	"strconv"
 
 	"fmt"
 	"math"
@@ -527,6 +528,34 @@ func evalArrayIndexExpression(array, index object.Object) object.Object {
 	return arrayObject.Elements[idx]
 }
 
+func addDepsToArg(arg object.Object, prefix string) object.Object {
+	// (TODO) Peter THIS IS BAD BUT WORKS FOR NOW
+	switch arg.(type) {
+	case *object.Array:
+		// BIG TODO (Peter) we really should not do this preemptively for arrays
+		// possibly lazily generate these metadata pieces for when array elements are actually accessed
+		// so passing an array of size n to a function doesn't incur a O(n) cost
+		arrayCopy := make([]object.Object, len(arg.(*object.Array).Elements))
+		for i, e := range arg.(*object.Array).Elements {
+			// right now I'm setting metadata for all arrays and sub arrays
+			// idk if this is really nessecary maybe we just need leaves...
+			// be careful about this in object.go as well
+			// (TODO) Peter string concatenation here is a performance no no remove it
+			eCopy := addDepsToArg(e, prefix+"|"+strconv.Itoa(i))
+			arrayCopy[i] = eCopy
+		}
+		copyArg := object.Array{Elements: arrayCopy}
+		copyArg.SetMetadata(object.TraceMetadata{Dependencies: map[string]bool{prefix: true}})
+		return &copyArg
+	default:
+		// note we should probably replace this inspect stuff with a real
+		// faster hash function at some point?
+		copyArg := arg.Copy()
+		copyArg.SetMetadata(object.TraceMetadata{Dependencies: map[string]bool{prefix: true}})
+		return copyArg
+	}
+}
+
 func applyFunction(fn object.Object, args []object.Object) object.Object {
 	switch fn := fn.(type) {
 	case *object.Function:
@@ -537,16 +566,14 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		evaluated := Eval(fn.Body, extendedEnv)
 		return unwrapReturnValue(evaluated)
 	case *object.PureFunction:
+		fmt.Println("fn called")
 		if len(fn.Parameters) != len(args) {
 			return newError("Supplied %v args, but %v are expected", len(args), len(fn.Parameters))
 		}
 		// strip the old metadata off of the incoming params
 		traceableArgs := make([]object.Object, len(fn.Parameters))
 		for i, a := range args {
-			deps := make(map[int]bool)
-			deps[i] = true
-			traceableArgs[i] = a.Copy()
-			traceableArgs[i].SetMetadata(object.TraceMetadata{Dependencies: deps})
+			traceableArgs[i] = addDepsToArg(a, strconv.Itoa(i))
 		}
 
 		extendedEnv := extendPureFunctionEnv(fn, traceableArgs)
@@ -567,7 +594,7 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		fnMetadata := res.GetMetadata()
 		callMetadata := object.TraceMetadata{}
 		for i, a := range args {
-			if obj, ok := fnMetadata.Dependencies[i]; ok && obj == true {
+			if obj, ok := fnMetadata.Dependencies[string(i)]; ok && obj == true {
 				callMetadata = object.MergeDependencies(callMetadata, a.GetMetadata())
 			}
 		}
