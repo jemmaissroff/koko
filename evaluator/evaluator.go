@@ -566,7 +566,6 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		evaluated := Eval(fn.Body, extendedEnv)
 		return unwrapReturnValue(evaluated)
 	case *object.PureFunction:
-		fmt.Println("fn called")
 		if len(fn.Parameters) != len(args) {
 			return newError("Supplied %v args, but %v are expected", len(args), len(fn.Parameters))
 		}
@@ -591,7 +590,9 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		// now we assign our dependencies for the function call itself
 		// this code might be a little inconsistent w.r.t errors?
 		res := unwrapReturnValue(evaluated)
+		fmt.Printf("res %+v\n", res)
 		fnMetadata := res.GetMetadata()
+		fmt.Printf("deps: %+v\n", fnMetadata.Dependencies)
 		callMetadata := object.TraceMetadata{}
 		for i, a := range args {
 			if obj, ok := fnMetadata.Dependencies[string(i)]; ok && obj == true {

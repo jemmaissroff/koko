@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"fmt"
 	"math/rand"
 	"monkey/object"
 )
@@ -15,11 +16,14 @@ var builtins = map[string]*object.Builtin{
 			var value int64
 			switch args[0].(type) {
 			case *object.Array:
+				// TODO (Peter) change how this works for the more efficient array comparisons
 				value = int64(len(args[0].(*object.Array).Elements))
+				fmt.Printf("prefix: %+v\n", args[0].GetMetadata())
+				return &object.Integer{Value: value /*Dependencies:*/}
 			default:
 				value = int64(len(args[0].String().Value))
+				return &object.Integer{Value: value}
 			}
-			return &object.Integer{Value: value}
 		},
 	},
 	"type": &object.Builtin{

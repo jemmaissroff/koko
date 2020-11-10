@@ -209,8 +209,17 @@ func (a *Array) Inspect() string {
 	out.WriteString("]")
 	return out.String()
 }
-func (a *Array) String() String                     { return String{Value: a.Inspect()} }
-func (a *Array) GetMetadata() TraceMetadata         { return a.metadata }
+func (a *Array) String() String { return String{Value: a.Inspect()} }
+
+// TODO (Peter) ironically we should cache this result
+func (a *Array) GetMetadata() TraceMetadata {
+	res := TraceMetadata{Dependencies: make(map[string]bool)}
+	for _, e := range a.Elements {
+		// (TODO) Peter: this is n^2 could EASILY be n with a one sided merge
+		res = MergeDependencies(res, e.GetMetadata())
+	}
+	return res
+}
 func (a *Array) SetMetadata(metadata TraceMetadata) { a.metadata = metadata }
 func (a *Array) Copy() Object                       { return &Array{Elements: a.Elements, metadata: a.metadata} }
 
