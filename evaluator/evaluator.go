@@ -509,10 +509,11 @@ func evalExpressions(
 
 func evalIndexExpression(left, index object.Object) object.Object {
 	if left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ {
-		return evalArrayIndexExpression(left, index)
-	} else {
-		return newError("index operator not supported: %s", left.Type())
+		res := evalArrayIndexExpression(left, index)
+		res.SetMetadata(object.MergeDependencies(res.GetMetadata(), index.GetMetadata()))
+		return res
 	}
+	return newError("index operator not supported: %s", left.Type())
 }
 
 func evalArrayIndexExpression(array, index object.Object) object.Object {
@@ -572,6 +573,7 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		// strip the old metadata off of the incoming params
 		traceableArgs := make([]object.Object, len(fn.Parameters))
 		for i, a := range args {
+			fmt.Printf("arg?: %+v\n", a)
 			traceableArgs[i] = addDepsToArg(a, strconv.Itoa(i))
 		}
 
