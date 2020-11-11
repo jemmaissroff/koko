@@ -33,6 +33,7 @@ const (
 	GT     = ">"
 
 	// Delimeters
+	COLON     = ":"
 	COMMA     = ","
 	SEMICOLON = ";"
 
