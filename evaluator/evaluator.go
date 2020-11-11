@@ -37,7 +37,10 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(val) {
 			return val
 		}
-		return &object.Return{Value: val}
+		res := &object.Return{Value: val}
+		// TODP (Peter) double check these references...
+		res.SetMetadata(val.GetMetadata())
+		return res
 
 	case *ast.IntegerLiteral:
 		switch node.Value {
@@ -557,6 +560,28 @@ func addDepsToArg(arg object.Object, prefix string) object.Object {
 	}
 }
 
+func getObjFromArray(identifier string, pos int, arr []object.Object) object.Object {
+	// TODO (Peter) strings are not efficient at all!
+	// Oh god there's a lot of cringe in this code
+	num := 0
+	for i := pos; i < len(identifier); i++ {
+		if identifier[i] == '|' {
+			break
+		} else {
+			num *= 10
+			d := int(identifier[i] - 48)
+			num += d
+		}
+	}
+	elem := arr[num]
+	switch elem.(type) {
+	case *object.Array:
+		return getObjFromArray(identifier, pos+1, elem.(*object.Array).Elements)
+	default:
+		return elem
+	}
+}
+
 func applyFunction(fn object.Object, args []object.Object) object.Object {
 	switch fn := fn.(type) {
 	case *object.Function:
@@ -592,13 +617,14 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		// now we assign our dependencies for the function call itself
 		// this code might be a little inconsistent w.r.t errors?
 		res := unwrapReturnValue(evaluated)
-		fmt.Printf("res %+v\n", res)
+		//fmt.Printf("res %+v\n", res)
 		fnMetadata := res.GetMetadata()
-		fmt.Printf("deps: %+v\n", fnMetadata.Dependencies)
 		callMetadata := object.TraceMetadata{}
-		for i, a := range args {
-			if obj, ok := fnMetadata.Dependencies[string(i)]; ok && obj == true {
-				callMetadata = object.MergeDependencies(callMetadata, a.GetMetadata())
+		for k, ok := range fnMetadata.Dependencies {
+			if ok {
+				fmt.Printf("idx: %s\n", k)
+				obj := getObjFromArray(k, 0, args)
+				callMetadata = object.MergeDependencies(callMetadata, obj.GetMetadata())
 			}
 		}
 		res.SetMetadata(callMetadata)

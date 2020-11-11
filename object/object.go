@@ -192,8 +192,9 @@ func (b *Builtin) SetMetadata(metadata TraceMetadata) { b.metadata = metadata }
 func (b *Builtin) Copy() Object                       { return &Builtin{Fn: b.Fn, metadata: b.metadata} }
 
 type Array struct {
-	Elements []Object
-	metadata TraceMetadata
+	Elements       []Object
+	metadata       TraceMetadata
+	lengthMetadata TraceMetadata
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }

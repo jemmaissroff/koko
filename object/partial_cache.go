@@ -17,7 +17,7 @@ type PartialCache struct {
 }
 
 func (c *PartialCache) Get(args map[string]string) (Object, bool) {
-	fmt.Printf("%+v\n", c.lines)
+	fmt.Printf("CACHE %+v\n", c.lines)
 	for _, line := range c.lines {
 		didMatch := true
 		for indx, val := range line.args {

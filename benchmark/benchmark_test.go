@@ -104,10 +104,9 @@ func BenchmarkPureMergeSort(b *testing.B) {
 func BenchmarkWorkingPureMergeSort(b *testing.B) {
 	program, env := testBuild(`
 	let get_n_elements = pfn(arr, offset, number_of_elements) { if (number_of_elements == 0) { [] } else { [arr[offset]] + get_n_elements(arr, offset + 1, number_of_elements - 1) } }
-	let merge_elements = pfn(res_lower, res_upper, len_res_lower, len_res_upper) { if (len_res_lower == 0) { if (len_res_upper == 0) { [] } else { res_upper } } else { if (len_res_upper == 0) { res_lower } else { if (first(res_upper) < first(res_lower)) { [first(res_upper)] + merge_elements(res_lower, rest(res_upper), len_res_lower, len_res_upper - 1) } else { [first(res_lower)] + merge_elements(res_upper, rest(res_lower)), len_res_upper, len_res_lower - 1 } } } }
+	let merge_elements = pfn(res_lower, res_upper, len_res_lower, len_res_upper) { if (len_res_lower == 0) { if (len_res_upper == 0) { [] } else { res_upper } } else { if (len_res_upper == 0) { res_lower } else { if (first(res_upper) < first(res_lower)) { [first(res_upper)] + merge_elements(res_lower, rest(res_upper), len_res_lower, len_res_upper - 1) } else { [first(res_lower)] + merge_elements(res_upper, rest(res_lower), len_res_upper, len_res_lower - 1) } } } }
 
-	let merge_sort = pfn(arr, len_arr) { if (len_arr == 1) { return arr } else { let half = int(len_arr/2); let res_lower = get_n_elements(arr, 0, half); let res_upper = get_n_elements(arr, half, len_arr - half); merge_elements(merge_sort(res_lower), merge_sort(res_upper)) } }
-
+	let merge_sort = pfn(arr, len_arr) { if (len_arr == 1) { return arr } else { let half = int(len_arr/2); let res_lower = get_n_elements(arr, 0, half); let res_upper = get_n_elements(arr, half, len_arr - half); merge_elements(merge_sort(res_lower, len(res_lower)), merge_sort(res_upper, len(res_upper)), len(res_lower), len(res_upper)) } }
 	let RAND_CONST = 10000
 	let random_array = fn(len) { if (len == 0) { [] } else { [rando(RAND_CONST)] + random_array(len - 1) } }
     let ra = random_array(200)

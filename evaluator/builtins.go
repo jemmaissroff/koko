@@ -65,7 +65,10 @@ var builtins = map[string]*object.Builtin{
 			case *object.Integer:
 				return arg
 			case *object.Float:
-				return &object.Integer{Value: int64(arg.Value)}
+				res := &object.Integer{Value: int64(arg.Value)}
+				// (TODO) Peter: possibly expand this pattern
+				res.SetMetadata(arg.GetMetadata())
+				return res
 			case *object.Boolean:
 				if arg == TRUE {
 					return &object.Integer{Value: 1}
