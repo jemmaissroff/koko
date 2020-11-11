@@ -374,7 +374,8 @@ func evalArrayInfixExpression(operator string, left object.Object, right object.
 
 	switch operator {
 	case "+":
-		return addElements(lEls, rEls)
+		res := addElements(left.(*object.Array), right.(*object.Array))
+		return res
 	case "==":
 		return nativeBoolToBooleanObject(elComparison(lEls, rEls))
 	case "!=":
@@ -384,15 +385,24 @@ func evalArrayInfixExpression(operator string, left object.Object, right object.
 	}
 }
 
-func addElements(left []object.Object, right []object.Object) *object.Array {
-	elements := make([]object.Object, 0, len(left)+len(right))
-	for _, el := range left {
-		elements = append(elements, el)
+func addElements(left *object.Array, right *object.Array) *object.Array {
+	elements := make([]object.Object, 0, len(left.Elements)+len(right.Elements))
+	for _, el := range left.Elements {
+		// we don't really need this but do it for consistency
+		elCopy := el.Copy()
+		elements = append(elements, elCopy)
 	}
-	for _, el := range right {
-		elements = append(elements, el)
+	for _, el := range right.Elements {
+		elCopy := el.Copy()
+		// objects on the right depend on the left array size for their index
+		// if the size of the left array shifts, the objects will change index
+		// they do not depend on the size of the right array
+		elCopy.SetMetadata(object.MergeDependencies(elCopy.GetMetadata(), left.LengthMetadata))
+		elements = append(elements, elCopy)
 	}
-	return &object.Array{Elements: elements}
+	res := object.Array{Elements: elements}
+	res.LengthMetadata = object.MergeDependencies(left.LengthMetadata, right.LengthMetadata)
+	return &res
 }
 
 func elComparison(left []object.Object, right []object.Object) bool {
@@ -550,6 +560,9 @@ func addDepsToArg(arg object.Object, prefix string) object.Object {
 		}
 		copyArg := object.Array{Elements: arrayCopy}
 		copyArg.SetMetadata(object.TraceMetadata{Dependencies: map[string]bool{prefix: true}})
+		// length dependency
+		lengthPrefix := prefix + "#"
+		copyArg.LengthMetadata = object.TraceMetadata{Dependencies: map[string]bool{lengthPrefix: true}}
 		return &copyArg
 	default:
 		// note we should probably replace this inspect stuff with a real
@@ -560,12 +573,16 @@ func addDepsToArg(arg object.Object, prefix string) object.Object {
 	}
 }
 
-func getObjFromArray(identifier string, pos int, arr []object.Object) object.Object {
+func getDepsFromArray(identifier string, pos int, arr []object.Object) object.TraceMetadata {
 	// TODO (Peter) strings are not efficient at all!
 	// Oh god there's a lot of cringe in this code
 	num := 0
+	needsLen := false
 	for i := pos; i < len(identifier); i++ {
 		if identifier[i] == '|' {
+			break
+		} else if identifier[i] == '#' {
+			needsLen = true
 			break
 		} else {
 			num *= 10
@@ -576,9 +593,12 @@ func getObjFromArray(identifier string, pos int, arr []object.Object) object.Obj
 	elem := arr[num]
 	switch elem.(type) {
 	case *object.Array:
-		return getObjFromArray(identifier, pos+1, elem.(*object.Array).Elements)
+		if needsLen {
+			return elem.(*object.Array).LengthMetadata
+		}
+		return getDepsFromArray(identifier, pos+1, elem.(*object.Array).Elements)
 	default:
-		return elem
+		return elem.GetMetadata()
 	}
 }
 
@@ -623,8 +643,8 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		for k, ok := range fnMetadata.Dependencies {
 			if ok {
 				fmt.Printf("idx: %s\n", k)
-				obj := getObjFromArray(k, 0, args)
-				callMetadata = object.MergeDependencies(callMetadata, obj.GetMetadata())
+				deps := getDepsFromArray(k, 0, args)
+				callMetadata = object.MergeDependencies(callMetadata, deps)
 			}
 		}
 		res.SetMetadata(callMetadata)

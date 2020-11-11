@@ -194,7 +194,7 @@ func (b *Builtin) Copy() Object                       { return &Builtin{Fn: b.Fn
 type Array struct {
 	Elements       []Object
 	metadata       TraceMetadata
-	lengthMetadata TraceMetadata
+	LengthMetadata TraceMetadata
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }
