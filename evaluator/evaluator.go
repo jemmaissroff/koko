@@ -602,6 +602,43 @@ func getDepsFromArray(identifier string, pos int, arr []object.Object) object.Tr
 	}
 }
 
+func deepCopyObjectAndTranslateDepsToResult(res object.Object, args []object.Object) object.Object {
+	// LOL THIS IS A PERF DUMPSTER FIRE possibly n^4!!!!
+	// THERE MUST BE A BETTER WAY!!!
+	switch res.(type) {
+	case *object.Array:
+		arrayCopy := make([]object.Object, len(res.(*object.Array).Elements))
+		for i, e := range res.(*object.Array).Elements {
+			eCopy := deepCopyObjectAndTranslateDepsToResult(e, args)
+			arrayCopy[i] = eCopy
+		}
+		copyRes := object.Array{Elements: arrayCopy}
+		// length dependency translation
+		translatedLenDeps := object.TraceMetadata{}
+		for dep, doesDepend := range res.(*object.Array).LengthMetadata.Dependencies {
+			if doesDepend {
+				transLenDep := getDepsFromArray(dep, 0, args)
+				translatedLenDeps = object.MergeDependencies(translatedLenDeps, transLenDep)
+			}
+		}
+		copyRes.LengthMetadata = translatedLenDeps
+		return &copyRes
+	default:
+		// note we should probably replace this inspect stuff with a real
+		// faster hash function at some point?
+		copyArg := res.Copy()
+		translatedDeps := object.TraceMetadata{}
+		for dep, doesDepend := range res.GetMetadata().Dependencies {
+			if doesDepend {
+				transDep := getDepsFromArray(dep, 0, args)
+				translatedDeps = object.MergeDependencies(translatedDeps, transDep)
+			}
+		}
+		copyArg.SetMetadata(translatedDeps)
+		return copyArg
+	}
+}
+
 func applyFunction(fn object.Object, args []object.Object) object.Object {
 	switch fn := fn.(type) {
 	case *object.Function:
@@ -632,23 +669,13 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 			// this code might be a little inconsistent w.r.t errors?
 			evaluated = Eval(fn.Body, extendedEnv)
 			fnMetadata := evaluated.GetMetadata()
+			fmt.Printf("ARG Deps: %+v\n", fnMetadata)
 			fn.Set(args, fnMetadata.Dependencies, evaluated)
 		}
 		// now we assign our dependencies for the function call itself
 		// this code might be a little inconsistent w.r.t errors?
 		res := unwrapReturnValue(evaluated)
-		//fmt.Printf("res %+v\n", res)
-		fnMetadata := res.GetMetadata()
-		callMetadata := object.TraceMetadata{}
-		for k, ok := range fnMetadata.Dependencies {
-			if ok {
-				fmt.Printf("idx: %s\n", k)
-				deps := getDepsFromArray(k, 0, args)
-				callMetadata = object.MergeDependencies(callMetadata, deps)
-			}
-		}
-		res.SetMetadata(callMetadata)
-		return res
+		return deepCopyObjectAndTranslateDepsToResult(res, args)
 	case *object.Builtin:
 		return fn.Fn(args...)
 	default:

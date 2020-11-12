@@ -257,12 +257,15 @@ func (f *PureFunction) Inspect() string {
 func (f *PureFunction) String() String { return String{Value: f.Inspect()} }
 
 func addArgToArgStrs(argStrs map[string]string, arg Object, prefix string) {
+	// note this is pretty inefficient
+	// we should almost reverse this process
 	switch arg.(type) {
 	case *Array:
 		for i, e := range arg.(*Array).Elements {
 			// (TODO) Peter string concatenation here is a performance no no
 			// remove it
 			addArgToArgStrs(argStrs, e, prefix+"|"+strconv.Itoa(i))
+			argStrs[prefix+"#"] = strconv.Itoa(len(arg.(*Array).Elements))
 		}
 		break
 	default:
