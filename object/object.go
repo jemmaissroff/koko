@@ -39,6 +39,9 @@ func (i *Integer) Inspect() string  { return fmt.Sprintf("%d", i.Value) }
 func (i *Integer) Type() ObjectType { return INTEGER_OBJ }
 func (i *Integer) String() String   { return String{Value: i.Inspect()} }
 func (i *Integer) Float() Float     { return Float{Value: float64(i.Value)} }
+func (i *Integer) HashKey() HashKey {
+	return HashKey{Type: i.Type(), Value: float64(i.Value)}
+}
 
 type Float struct {
 	Value float64
@@ -52,6 +55,9 @@ func (f *Float) Inspect() string {
 }
 func (f *Float) Type() ObjectType { return FLOAT_OBJ }
 func (f *Float) String() String   { return String{Value: f.Inspect()} }
+func (f *Float) HashKey() HashKey {
+	return HashKey{Type: f.Type(), Value: f.Value}
+}
 
 type Boolean struct {
 	Value bool
@@ -60,6 +66,15 @@ type Boolean struct {
 func (b *Boolean) Type() ObjectType { return BOOLEAN_OBJ }
 func (b *Boolean) Inspect() string  { return fmt.Sprintf("%t", b.Value) }
 func (b *Boolean) String() String   { return String{Value: b.Inspect()} }
+func (b *Boolean) HashKey() HashKey {
+	var value float64
+	if b.Value {
+		value = 1
+	} else {
+		value = 0
+	}
+	return HashKey{Type: b.Type(), Value: value}
+}
 
 type String struct {
 	Value string
@@ -68,6 +83,13 @@ type String struct {
 func (s *String) Type() ObjectType { return STRING_OBJ }
 func (s *String) Inspect() string  { return s.Value }
 func (s *String) String() String   { return *s }
+
+// JEM: Could cache these values to optimize for performance
+func (s *String) HashKey() HashKey {
+	h := fnv.New64a()
+	h.Write([]byte(s.Value))
+	return HashKey{Type: s.Type(), Value: float64(h.Sum64())}
+}
 
 type Return struct {
 	Value Object
@@ -224,28 +246,7 @@ func (h *Hash) String() String { return String{Value: h.Inspect()} }
 
 type HashKey struct {
 	Type  ObjectType
-	Value uint64
-}
-
-func (b *Boolean) HashKey() HashKey {
-	var value uint64
-	if b.Value {
-		value = 1
-	} else {
-		value = 0
-	}
-	return HashKey{Type: b.Type(), Value: value}
-}
-
-func (i *Integer) HashKey() HashKey {
-	return HashKey{Type: i.Type(), Value: uint64(i.Value)}
-}
-
-// JEM: Could cache these values to optimize for performance
-func (s *String) HashKey() HashKey {
-	h := fnv.New64a()
-	h.Write([]byte(s.Value))
-	return HashKey{Type: s.Type(), Value: h.Sum64()}
+	Value float64
 }
 
 type Hashable interface {
