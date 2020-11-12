@@ -37,10 +37,9 @@ func (c *PartialCache) Set(args map[string]string, deps map[string]bool, val Obj
 	// let f = pfn(a, b) { b + a }
 	// let g = pfn(a, b, c) { f(a,c)[b] }
 	// g([1,2,3,4],3,[5,6,7])
+	// g([1],3,[5,6,7,8])
 	cachedArgs := make(map[string]string)
-	fmt.Printf("cache args: %+v\n", args)
 	for d, v := range deps {
-		fmt.Printf("arg: %s", d)
 		if v {
 			cachedArgs[d] = args[d]
 		}

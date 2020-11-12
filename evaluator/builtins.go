@@ -1,7 +1,6 @@
 package evaluator
 
 import (
-	"fmt"
 	"math/rand"
 	"monkey/object"
 )
@@ -16,11 +15,12 @@ var builtins = map[string]*object.Builtin{
 			var value int64
 			switch args[0].(type) {
 			case *object.Array:
-				// TODO (Peter) change how this works for the more efficient array comparisons
 				value = int64(len(args[0].(*object.Array).Elements))
-				fmt.Printf("prefix: %+v\n", args[0].GetMetadata())
-				return &object.Integer{Value: value /*Dependencies:*/}
+				res := object.Integer{Value: value}
+				res.SetMetadata(args[0].(*object.Array).LengthMetadata)
+				return &res
 			default:
+				// TODO (Peter) add this case to dep tracking
 				value = int64(len(args[0].String().Value))
 				return &object.Integer{Value: value}
 			}
@@ -131,7 +131,10 @@ var builtins = map[string]*object.Builtin{
 			if length > 0 {
 				newElements := make([]object.Object, length-1, length-1)
 				copy(newElements, arr.Elements[1:length])
-				return &object.Array{Elements: newElements}
+				res := &object.Array{Elements: newElements}
+				res.LengthMetadata = arr.LengthMetadata
+				return res
+				// let f = pfn(a, b) { if (a > 0) { if (a > 0) { rest(b) + [a] } } }
 			}
 			return NIL
 		},

@@ -265,7 +265,11 @@ func addArgToArgStrs(argStrs map[string]string, arg Object, prefix string) {
 			// (TODO) Peter string concatenation here is a performance no no
 			// remove it
 			addArgToArgStrs(argStrs, e, prefix+"|"+strconv.Itoa(i))
-			argStrs[prefix+"#"] = strconv.Itoa(len(arg.(*Array).Elements))
+		}
+		argStrs[prefix+"#"] = strconv.Itoa(len(arg.(*Array).Elements))
+		if len(arg.(*Array).Elements) == 0 {
+			// TODO (Peter make this a special empty array symbol)
+			argStrs[prefix] = "Z"
 		}
 		break
 	default:

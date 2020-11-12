@@ -401,6 +401,8 @@ func addElements(left *object.Array, right *object.Array) *object.Array {
 		elements = append(elements, elCopy)
 	}
 	res := object.Array{Elements: elements}
+	// TODO (Peter) really fix runtime here
+	res.SetMetadata(object.MergeDependencies(left.GetMetadata(), right.GetMetadata()))
 	res.LengthMetadata = object.MergeDependencies(left.LengthMetadata, right.LengthMetadata)
 	return &res
 }
@@ -450,12 +452,10 @@ func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Obje
 
 	if isTruthy(condition) {
 		res := Eval(ie.Consequence, env)
-		res.SetMetadata(object.MergeDependencies(res.GetMetadata(), condition.GetMetadata()))
-		return res
+		return deepCopyObjectAndMergeDeps(res, condition.GetMetadata())
 	} else if ie.Alternative != nil {
 		res := Eval(ie.Alternative, env)
-		res.SetMetadata(object.MergeDependencies(res.GetMetadata(), condition.GetMetadata()))
-		return res
+		return deepCopyObjectAndMergeDeps(res, condition.GetMetadata())
 	} else {
 		res := NIL.Copy()
 		res.SetMetadata(condition.GetMetadata())
@@ -588,9 +588,14 @@ func getDepsFromArray(identifier string, pos int, arr []object.Object) object.Tr
 			num *= 10
 			d := int(identifier[i] - 48)
 			num += d
+			pos++
 		}
 	}
+	fmt.Printf("about to search %d at pos %d\n", num, pos)
 	elem := arr[num]
+	if pos >= len(identifier) {
+		return elem.GetMetadata()
+	}
 	switch elem.(type) {
 	case *object.Array:
 		if needsLen {
@@ -599,6 +604,30 @@ func getDepsFromArray(identifier string, pos int, arr []object.Object) object.Tr
 		return getDepsFromArray(identifier, pos+1, elem.(*object.Array).Elements)
 	default:
 		return elem.GetMetadata()
+	}
+}
+
+func deepCopyObjectAndMergeDeps(res object.Object, depsToMerge object.TraceMetadata) object.Object {
+	// OMG things have really gone to shit
+	switch res.(type) {
+	case *object.Array:
+		arrayCopy := make([]object.Object, len(res.(*object.Array).Elements))
+		for i, e := range res.(*object.Array).Elements {
+			eCopy := deepCopyObjectAndMergeDeps(e, depsToMerge)
+			arrayCopy[i] = eCopy
+		}
+		copyRes := object.Array{Elements: arrayCopy}
+		// array metadata (important in the case of empty arrays!!!)
+		copyRes.SetMetadata(object.MergeDependencies(res.GetMetadata(), depsToMerge))
+		// length dependency copy
+		copyRes.LengthMetadata = object.MergeDependencies(res.(*object.Array).LengthMetadata, depsToMerge)
+		return &copyRes
+	default:
+		// note we should probably replace this inspect stuff with a real
+		// faster hash function at some point?
+		copyRes := res.Copy()
+		copyRes.SetMetadata(object.MergeDependencies(res.GetMetadata(), depsToMerge))
+		return copyRes
 	}
 }
 
@@ -613,11 +642,25 @@ func deepCopyObjectAndTranslateDepsToResult(res object.Object, args []object.Obj
 			arrayCopy[i] = eCopy
 		}
 		copyRes := object.Array{Elements: arrayCopy}
+		// metadata dependency translation
+		// TODO (Peter immediately clean this up)
+		translatedMetadataDeps := object.TraceMetadata{}
+		for metadataDep, doesDepend := range res.GetMetadata().Dependencies {
+			if doesDepend {
+				fmt.Printf("searching for array meta: %s\n", metadataDep)
+				transMetadataDep := getDepsFromArray(metadataDep, 0, args)
+				fmt.Printf("found: %+v\n", transMetadataDep)
+				translatedMetadataDeps = object.MergeDependencies(translatedMetadataDeps, transMetadataDep)
+			}
+		}
+		copyRes.SetMetadata(translatedMetadataDeps)
 		// length dependency translation
 		translatedLenDeps := object.TraceMetadata{}
-		for dep, doesDepend := range res.(*object.Array).LengthMetadata.Dependencies {
+		for lenDep, doesDepend := range res.(*object.Array).LengthMetadata.Dependencies {
 			if doesDepend {
-				transLenDep := getDepsFromArray(dep, 0, args)
+				fmt.Printf("searching for array dep: %s\n", lenDep)
+				transLenDep := getDepsFromArray(lenDep, 0, args)
+				fmt.Printf("found: %+v\n", transLenDep)
 				translatedLenDeps = object.MergeDependencies(translatedLenDeps, transLenDep)
 			}
 		}
@@ -626,16 +669,18 @@ func deepCopyObjectAndTranslateDepsToResult(res object.Object, args []object.Obj
 	default:
 		// note we should probably replace this inspect stuff with a real
 		// faster hash function at some point?
-		copyArg := res.Copy()
+		copyRes := res.Copy()
 		translatedDeps := object.TraceMetadata{}
 		for dep, doesDepend := range res.GetMetadata().Dependencies {
 			if doesDepend {
+				fmt.Printf("searching for dep: %s\n", dep)
 				transDep := getDepsFromArray(dep, 0, args)
+				fmt.Printf("found: %+v\n", transDep)
 				translatedDeps = object.MergeDependencies(translatedDeps, transDep)
 			}
 		}
-		copyArg.SetMetadata(translatedDeps)
-		return copyArg
+		copyRes.SetMetadata(translatedDeps)
+		return copyRes
 	}
 }
 
@@ -655,7 +700,6 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		// strip the old metadata off of the incoming params
 		traceableArgs := make([]object.Object, len(fn.Parameters))
 		for i, a := range args {
-			fmt.Printf("arg?: %+v\n", a)
 			traceableArgs[i] = addDepsToArg(a, strconv.Itoa(i))
 		}
 
@@ -669,13 +713,21 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 			// this code might be a little inconsistent w.r.t errors?
 			evaluated = Eval(fn.Body, extendedEnv)
 			fnMetadata := evaluated.GetMetadata()
-			fmt.Printf("ARG Deps: %+v\n", fnMetadata)
 			fn.Set(args, fnMetadata.Dependencies, evaluated)
 		}
 		// now we assign our dependencies for the function call itself
 		// this code might be a little inconsistent w.r.t errors?
 		res := unwrapReturnValue(evaluated)
-		return deepCopyObjectAndTranslateDepsToResult(res, args)
+		fmt.Printf("IN: %+v\n", res)
+		fmt.Printf("Translating to fn call %s\n", fn.Inspect())
+		fmt.Printf("Args:")
+		for i, a := range args {
+			fmt.Printf("(%d): %+v|", i, a)
+		}
+		fmt.Printf("\n")
+		out := deepCopyObjectAndTranslateDepsToResult(res, args)
+		fmt.Printf("OUT: %+v\n", out)
+		return out
 	case *object.Builtin:
 		return fn.Fn(args...)
 	default:

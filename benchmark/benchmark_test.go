@@ -77,11 +77,14 @@ func BenchmarkMergeSort(b *testing.B) {
 }
 
 func BenchmarkPureMergeSort(b *testing.B) {
+	// merge_sort([-10,8,100,2,1])
+	// merge_sort([10,4,-1000,7,-68,99,1])
+	// merge_sort([2,-8])
 	program, env := testBuild(`
 	let get_n_elements = pfn(arr, offset, number_of_elements) { if (number_of_elements == 0) { [] } else { [arr[offset]] + get_n_elements(arr, offset + 1, number_of_elements - 1) } }
 	let merge_elements = pfn(res_lower, res_upper) { if (len(res_lower) == 0) { if (len(res_upper) == 0) { [] } else { res_upper } } else { if (len(res_upper) == 0) { res_lower } else { if (first(res_upper) < first(res_lower)) { [first(res_upper)] + merge_elements(res_lower, rest(res_upper)) } else { [first(res_lower)] + merge_elements(res_upper, rest(res_lower)) } } } }
 
-	let merge_sort = pfn(arr) { if (len(arr) == 1) { return arr } else { let half = int(len(arr)/2); let res_lower = get_n_elements(arr, 0, half); let res_upper = get_n_elements(arr, half, len(arr) - half); merge_elements(merge_sort(res_lower), merge_sort(res_upper)) } }
+	let merge_sort = pfn(arr) { if (len(arr) < 2) { return arr } else { let half = int(len(arr)/2); let res_lower = get_n_elements(arr, 0, half); let res_upper = get_n_elements(arr, half, len(arr) - half); merge_elements(merge_sort(res_lower), merge_sort(res_upper)) } }
 
 	let RAND_CONST = 10000
 	let random_array = fn(len) { if (len == 0) { [] } else { [rando(RAND_CONST)] + random_array(len - 1) } }
@@ -102,6 +105,15 @@ func BenchmarkPureMergeSort(b *testing.B) {
 }
 
 func BenchmarkWorkingPureMergeSort(b *testing.B) {
+	// let f = pfn(a, b) { rest(b) + a }
+	// let f = fn(a, b) { rest(b) + a }
+	// let h = pfn(a,b) { [a,b] }
+	// let g = pfn(a) { h(a,a) }
+
+	// let f = pfn(a,b,c,d) { if (d == 0) { if (c==0) { [] } } }
+	// let g = pfn(a) { f(a,a,a,a) }
+	// let s = pfn(arr, l) { if (l==0) { arr[0] } else { arr[0] + s(rest(arr), l - 1) } }
+	// s([1,2,3],2)
 	program, env := testBuild(`
 	let get_n_elements = pfn(arr, offset, number_of_elements) { if (number_of_elements == 0) { [] } else { [arr[offset]] + get_n_elements(arr, offset + 1, number_of_elements - 1) } }
 	let merge_elements = pfn(res_lower, res_upper, len_res_lower, len_res_upper) { if (len_res_lower == 0) { if (len_res_upper == 0) { [] } else { res_upper } } else { if (len_res_upper == 0) { res_lower } else { if (first(res_upper) < first(res_lower)) { [first(res_upper)] + merge_elements(res_lower, rest(res_upper), len_res_lower, len_res_upper - 1) } else { [first(res_lower)] + merge_elements(res_upper, rest(res_lower), len_res_upper, len_res_lower - 1) } } } }
