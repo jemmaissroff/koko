@@ -357,9 +357,29 @@ func elComparison(left []object.Object, right []object.Object) bool {
 		return false
 	}
 	for i, l := range left {
-		// JEM: Inspect() isn't actually going to work here, need to fix
-		if l.Inspect() != right[i].Inspect() {
+		r := right[i]
+		if l.Type() != r.Type() {
 			return false
+		}
+
+		switch {
+		case l.Type() == object.ARRAY_OBJ:
+			if !elComparison(
+				l.(*object.Array).Elements,
+				r.(*object.Array).Elements,
+			) {
+				return false
+			}
+		default:
+			lHash, ok := l.(object.Hashable)
+			if !ok && l.Inspect() != r.Inspect() {
+				return false
+			} else {
+				rHash, _ := r.(object.Hashable)
+				if lHash.HashKey().Value != rHash.HashKey().Value {
+					return false
+				}
+			}
 		}
 	}
 	return true
