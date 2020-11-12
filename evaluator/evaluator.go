@@ -712,8 +712,8 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		} else {
 			// this code might be a little inconsistent w.r.t errors?
 			evaluated = Eval(fn.Body, extendedEnv)
-			fnMetadata := evaluated.GetMetadata()
-			fn.Set(args, fnMetadata.Dependencies, evaluated)
+			//fnMetadata := evaluated.GetMetadata()
+			//fn.Set(args, fnMetadata.Dependencies, evaluated)
 		}
 		// now we assign our dependencies for the function call itself
 		// this code might be a little inconsistent w.r.t errors?
