@@ -20,7 +20,8 @@ func strEquals(t *testing.T, testStr string, truthStr string) {
 This section contains larger "integration tests".
 **/
 func TestMergeSortOnInts(t *testing.T) {
-	for i := 0; i < 10; i++ {
+	rand.Seed(1)
+	for i := 0; i < 20; i++ {
 		arrLen := rand.Intn(100)
 		arr := make([]int, arrLen)
 		for j := 0; j < arrLen; j++ {
