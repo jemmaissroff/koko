@@ -389,10 +389,12 @@ func addElements(left *object.Array, right *object.Array) *object.Array {
 	elements := make([]object.Object, 0, len(left.Elements)+len(right.Elements))
 	for _, el := range left.Elements {
 		// we don't really need this but do it for consistency
+		// TODO (Peter should be deep copy?)
 		elCopy := el.Copy()
 		elements = append(elements, elCopy)
 	}
 	for _, el := range right.Elements {
+		// TODO (Peter should be deep copy?)
 		elCopy := el.Copy()
 		// objects on the right depend on the left array size for their index
 		// if the size of the left array shifts, the objects will change index
@@ -446,19 +448,26 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 
 func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Object {
 	condition := Eval(ie.Condition, env)
+	conditionMetadataCopy := object.MergeDependencies(object.TraceMetadata{}, condition.GetMetadata())
 	if isError(condition) {
 		return condition
 	}
 
 	if isTruthy(condition) {
+		//debugID := rand.Intn(1000000)
+		//fmt.Printf("pre-condition metadata (w/ id: %d) %+v\n", debugID, )
 		res := Eval(ie.Consequence, env)
-		return deepCopyObjectAndMergeDeps(res, condition.GetMetadata())
+		//fmt.Printf("condition metadata (w/ id: %d) %+v\n", debugID, condition.GetMetadata())
+		return deepCopyObjectAndMergeDeps(res, conditionMetadataCopy)
 	} else if ie.Alternative != nil {
+		//debugID := rand.Intn(1000000)
+		//fmt.Printf("pre-else metadata (w/ id: %d) %+v\n", debugID, condition.GetMetadata())
 		res := Eval(ie.Alternative, env)
-		return deepCopyObjectAndMergeDeps(res, condition.GetMetadata())
+		//fmt.Printf("else metadata (w/ id: %d) %+v\n", debugID, condition.GetMetadata())
+		return deepCopyObjectAndMergeDeps(res, conditionMetadataCopy)
 	} else {
 		res := NIL.Copy()
-		res.SetMetadata(condition.GetMetadata())
+		res.SetMetadata(conditionMetadataCopy)
 		return res
 	}
 }
@@ -542,7 +551,7 @@ func evalArrayIndexExpression(array, index object.Object) object.Object {
 	return arrayObject.Elements[idx]
 }
 
-func addDepsToArg(arg object.Object, prefix string) object.Object {
+func deepCopyAndAddDepsToArg(arg object.Object, prefix string) object.Object {
 	// (TODO) Peter THIS IS BAD BUT WORKS FOR NOW
 	switch arg.(type) {
 	case *object.Array:
@@ -555,7 +564,7 @@ func addDepsToArg(arg object.Object, prefix string) object.Object {
 			// idk if this is really nessecary maybe we just need leaves...
 			// be careful about this in object.go as well
 			// (TODO) Peter string concatenation here is a performance no no remove it
-			eCopy := addDepsToArg(e, prefix+"|"+strconv.Itoa(i))
+			eCopy := deepCopyAndAddDepsToArg(e, prefix+"|"+strconv.Itoa(i))
 			arrayCopy[i] = eCopy
 		}
 		copyArg := object.Array{Elements: arrayCopy}
@@ -591,7 +600,7 @@ func getDepsFromArray(identifier string, pos int, arr []object.Object) object.Tr
 			pos++
 		}
 	}
-	fmt.Printf("about to search %d at pos %d\n", num, pos)
+	//fmt.Printf("about to search %d at pos %d\n", num, pos)
 	elem := arr[num]
 	if pos >= len(identifier) {
 		return elem.GetMetadata()
@@ -603,6 +612,7 @@ func getDepsFromArray(identifier string, pos int, arr []object.Object) object.Tr
 		}
 		return getDepsFromArray(identifier, pos+1, elem.(*object.Array).Elements)
 	default:
+		// TODO (Peter) could probably replace this with a throw...
 		return elem.GetMetadata()
 	}
 }
@@ -647,9 +657,9 @@ func deepCopyObjectAndTranslateDepsToResult(res object.Object, args []object.Obj
 		translatedMetadataDeps := object.TraceMetadata{}
 		for metadataDep, doesDepend := range res.GetMetadata().Dependencies {
 			if doesDepend {
-				fmt.Printf("searching for array meta: %s\n", metadataDep)
+				//fmt.Printf("searching for array meta: %s\n", metadataDep)
 				transMetadataDep := getDepsFromArray(metadataDep, 0, args)
-				fmt.Printf("found: %+v\n", transMetadataDep)
+				//fmt.Printf("found: %+v\n", transMetadataDep)
 				translatedMetadataDeps = object.MergeDependencies(translatedMetadataDeps, transMetadataDep)
 			}
 		}
@@ -658,9 +668,9 @@ func deepCopyObjectAndTranslateDepsToResult(res object.Object, args []object.Obj
 		translatedLenDeps := object.TraceMetadata{}
 		for lenDep, doesDepend := range res.(*object.Array).LengthMetadata.Dependencies {
 			if doesDepend {
-				fmt.Printf("searching for array dep: %s\n", lenDep)
+				//fmt.Printf("searching for array dep: %s\n", lenDep)
 				transLenDep := getDepsFromArray(lenDep, 0, args)
-				fmt.Printf("found: %+v\n", transLenDep)
+				//fmt.Printf("found: %+v\n", transLenDep)
 				translatedLenDeps = object.MergeDependencies(translatedLenDeps, transLenDep)
 			}
 		}
@@ -673,9 +683,9 @@ func deepCopyObjectAndTranslateDepsToResult(res object.Object, args []object.Obj
 		translatedDeps := object.TraceMetadata{}
 		for dep, doesDepend := range res.GetMetadata().Dependencies {
 			if doesDepend {
-				fmt.Printf("searching for dep: %s\n", dep)
+				//fmt.Printf("searching for dep: %s\n", dep)
 				transDep := getDepsFromArray(dep, 0, args)
-				fmt.Printf("found: %+v\n", transDep)
+				//fmt.Printf("found: %+v\n", transDep)
 				translatedDeps = object.MergeDependencies(translatedDeps, transDep)
 			}
 		}
@@ -700,33 +710,35 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		// strip the old metadata off of the incoming params
 		traceableArgs := make([]object.Object, len(fn.Parameters))
 		for i, a := range args {
-			traceableArgs[i] = addDepsToArg(a, strconv.Itoa(i))
+			traceableArgs[i] = deepCopyAndAddDepsToArg(a, strconv.Itoa(i))
 		}
 
 		extendedEnv := extendPureFunctionEnv(fn, traceableArgs)
-		var evaluated object.Object
+		var res object.Object
 		// TODO (Peter) should we cache errors?
 		// Also this logic could be cleaned up a little
 		if val, ok := fn.Get(args); ok {
-			evaluated = val
+			fmt.Printf("CACHE HIT\n")
+			res = val
 		} else {
 			// this code might be a little inconsistent w.r.t errors?
-			evaluated = Eval(fn.Body, extendedEnv)
-			//fnMetadata := evaluated.GetMetadata()
-			//fn.Set(args, fnMetadata.Dependencies, evaluated)
+			res = unwrapReturnValue(Eval(fn.Body, extendedEnv))
+			fnMetadata := res.GetMetadata()
+			fn.Set(args, fnMetadata.Dependencies, res)
 		}
 		// now we assign our dependencies for the function call itself
 		// this code might be a little inconsistent w.r.t errors?
-		res := unwrapReturnValue(evaluated)
-		fmt.Printf("IN: %+v\n", res)
-		fmt.Printf("Translating to fn call %s\n", fn.Inspect())
-		fmt.Printf("Args:")
+		//res := unwrapReturnValue(evaluated)
+		fmt.Printf("\n\n\nFN IN QUESTION: %s\n", fn.Inspect())
+		fmt.Printf("PRE TRANSLATION RESULT: %+v\n", res)
+		//fmt.Printf("Translating to fn call %s\n", fn.Inspect())
+		fmt.Printf("\n\nArgs:")
 		for i, a := range args {
 			fmt.Printf("(%d): %+v|", i, a)
 		}
-		fmt.Printf("\n")
+		fmt.Printf("\n\n\n")
 		out := deepCopyObjectAndTranslateDepsToResult(res, args)
-		fmt.Printf("OUT: %+v\n", out)
+		fmt.Printf("POST TRANSLATION RESULT: %+v\n", out)
 		return out
 	case *object.Builtin:
 		return fn.Fn(args...)

@@ -1,9 +1,5 @@
 package object
 
-import (
-	"fmt"
-)
-
 // This is the basic and bad O(n^2) solution
 // We can at least get O(n) read time with a basic trie (although still O(n^2) write time)
 // I'm still 50/50 that theres a totally O(n) way
@@ -17,7 +13,7 @@ type PartialCache struct {
 }
 
 func (c *PartialCache) Get(args map[string]string) (Object, bool) {
-	fmt.Printf("CACHE %+v\n", c.lines)
+	//fmt.Printf("CACHE %+v\n", c.lines)
 	for _, line := range c.lines {
 		didMatch := true
 		for indx, val := range line.args {
@@ -27,6 +23,8 @@ func (c *PartialCache) Get(args map[string]string) (Object, bool) {
 			}
 		}
 		if didMatch {
+			//fmt.Printf("CACHE HIT LINE %+v\n", line)
+			//fmt.Printf("CACHE HIT VALUE %+v\n", line.Value)
 			return line.Value, true
 		}
 	}
