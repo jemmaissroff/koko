@@ -49,16 +49,19 @@ func TestMergeSortOnInts(t *testing.T) {
 		`, strInput)
 
 		outList := testEval(mergeSortProgram)
-		outStr := ""
-		expectedStr := ""
+		outStr := "["
+		expectedStr := "["
 		for j := 0; j < arrLen; j++ {
 			elem := outList.(*object.Array).Elements[j]
 			outStr += elem.Inspect()
 			expectedStr += strconv.Itoa(expectedResult[j])
 			if j < arrLen-1 {
-				strInput += ","
+				outStr += ","
+				expectedStr += ","
 			}
 		}
+		outStr += "]"
+		expectedStr += "]"
 		strEquals(t, outStr, expectedStr)
 	}
 }
