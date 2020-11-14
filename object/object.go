@@ -21,6 +21,7 @@ const (
 	FUNCTION_OBJ = "FUNCTION"
 	BUILTIN_OBJ  = "BUILTIN"
 	ARRAY_OBJ    = "ARRAY"
+	TRACE_OBJ    = "TRACE"
 )
 
 type TraceMetadata struct {
@@ -313,3 +314,24 @@ func objectsToString(args []Object) string {
 	}
 	return res
 }
+
+// this is a special type only returned by the deps function
+// it should never be used code as it will poision the dependecy tracing system
+// it also cannot be copied
+// TODO find a way to enforce this
+// the only way to access the metadata is through a special functions so it's use must be intended
+// in for example our unit tests
+type DebugTraceMetadata struct {
+	metadata TraceMetadata
+}
+
+func (d *DebugTraceMetadata) Type() ObjectType { return TRACE_OBJ }
+func (d *DebugTraceMetadata) Inspect() string {
+	return "Debug Trace (This Object Should Almost Never Be Used)"
+}
+func (d *DebugTraceMetadata) String() String                          { return String{Value: d.Inspect()} }
+func (d *DebugTraceMetadata) GetMetadata() TraceMetadata              { return TraceMetadata{} }
+func (d *DebugTraceMetadata) SetMetadata(metadata TraceMetadata)      {}
+func (d *DebugTraceMetadata) Copy() Object                            { return &DebugTraceMetadata{} }
+func (d *DebugTraceMetadata) GetDebugMetadata() TraceMetadata         { return d.metadata }
+func (d *DebugTraceMetadata) SetDebugMetadata(metadata TraceMetadata) { d.metadata = metadata }

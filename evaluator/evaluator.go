@@ -111,7 +111,10 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return args[0]
 		}
 
-		return applyFunction(function, args)
+		res := applyFunction(function, args)
+		// now we assign our dependencies for the function call itself
+		// this code might be a little inconsistent w.r.t errors?
+		return deepCopyObjectAndTranslateDepsToResult(res, args)
 	case *ast.ArrayLiteral:
 		elements := evalExpressions(node.Elements, env)
 		if len(elements) == 1 && isError(elements[0]) {
@@ -718,7 +721,6 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		// TODO (Peter) should we cache errors?
 		// Also this logic could be cleaned up a little
 		if val, ok := fn.Get(args); ok {
-			//fmt.Printf("CACHE HIT\n")
 			res = val
 		} else {
 			// this code might be a little inconsistent w.r.t errors?
@@ -726,20 +728,7 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 			fnMetadata := res.GetMetadata()
 			fn.Set(args, fnMetadata.Dependencies, res)
 		}
-		// now we assign our dependencies for the function call itself
-		// this code might be a little inconsistent w.r.t errors?
-		//res := unwrapReturnValue(evaluated)
-		//fmt.Printf("\n\n\nFN IN QUESTION: %s\n", fn.Inspect())
-		//fmt.Printf("PRE TRANSLATION RESULT: %+v\n", res)
-		//fmt.Printf("Translating to fn call %s\n", fn.Inspect())
-		/*fmt.Printf("\n\nArgs:")
-		for i, a := range args {
-			fmt.Printf("(%d): %+v|", i, a)
-		}
-		fmt.Printf("\n\n\n")*/
-		out := deepCopyObjectAndTranslateDepsToResult(res, args)
-		//fmt.Printf("POST TRANSLATION RESULT: %+v\n", out)
-		return out
+		return res
 	case *object.Builtin:
 		return fn.Fn(args...)
 	default:

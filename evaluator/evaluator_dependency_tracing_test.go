@@ -1,13 +1,21 @@
 package evaluator
 
 import (
-	"fmt"
-	"math/rand"
+	"monkey/lexer"
 	"monkey/object"
-	"sort"
-	"strconv"
+	"monkey/parser"
 	"testing"
 )
+
+func testEvalAndGetDeps(input string, fname string) object.Object {
+	l := lexer.New(input)
+	p := parser.New(l)
+	program := p.ParseProgram()
+	env := object.NewEnvironment()
+	env.Get('f')
+
+	return Eval(program, env)
+}
 
 func strEquals(t *testing.T, testStr string, truthStr string) {
 	if testStr != truthStr {
@@ -16,10 +24,44 @@ func strEquals(t *testing.T, testStr string, truthStr string) {
 	}
 }
 
+/*func assertProgramDidNotError(t *testing.T, res object.Object) object.Object {
+	if ok, _ := res.(object.Error); ok {
+
+	}
+}*/
+
+func assertObjectDepsEqual(t *testing.T, res object.Object, expectedDeps []string) {
+	deps := res.GetMetadata().Dependencies
+	expectedDepsMap := make(map[string]bool)
+	for _, d := range expectedDeps {
+		expectedDepsMap[d] = true
+		ok, val := deps[d]
+		if !(ok && val) {
+			t.Errorf("Expected Dependency %s missing on object %+v\n", d, res)
+			return
+		}
+	}
+	// check that we have no other deps
+	for k, v := range res.GetMetadata().Dependencies {
+		if v {
+			if ok, _ := expectedDepsMap[k]; !ok {
+				t.Errorf("Extra Dependency %s on object %+v\n", k, res)
+				return
+			}
+		}
+	}
+}
+
+func TestDependencyTrackingInBasicFunctionWithIntegers(t *testing.T) {
+	simpleFunctionProgram := "let f = pfn(a, b) { b }; f(1, 2)"
+	res := testEval(simpleFunctionProgram)
+	assertObjectDepsEqual(t, res, []string{"1"})
+}
+
 /**
 This section contains larger "integration tests".
 **/
-func TestMergeSortOnInts(t *testing.T) {
+/*func TestMergeSortOnInts(t *testing.T) {
 	rand.Seed(1)
 	for i := 0; i < 20; i++ {
 		arrLen := rand.Intn(100)
@@ -64,4 +106,4 @@ func TestMergeSortOnInts(t *testing.T) {
 		expectedStr += "]"
 		strEquals(t, outStr, expectedStr)
 	}
-}
+}*/
