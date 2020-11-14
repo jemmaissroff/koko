@@ -175,15 +175,21 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 }
 
 func evalInfixExpression(operator string, left object.Object, right object.Object) object.Object {
+	if operator == "==" {
+		return nativeBoolToBooleanObject(left.Equal(right))
+	} else if operator == "!=" {
+		return nativeBoolToBooleanObject(!left.Equal(right))
+	}
 	switch {
 	case left.Type() == object.ARRAY_OBJ:
 		switch {
 		case right.Type() == object.ARRAY_OBJ:
 			return evalArrayInfixExpression(operator, left, right)
-		case operator == "==":
-			return FALSE
-		case operator == "!=":
-			return TRUE
+		}
+	case left.Type() == object.HASH_OBJ:
+		switch {
+		case right.Type() == object.HASH_OBJ:
+			return evalHashInfixExpression(operator, left, right)
 		}
 	case left.Type() == object.STRING_OBJ:
 		switch {
@@ -193,10 +199,6 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 			return multiplyStrings(left, right)
 		case operator == "+":
 			return addStrings(left, right)
-		case operator == "==":
-			return FALSE
-		case operator == "!=":
-			return TRUE
 		}
 	case right.Type() == object.STRING_OBJ:
 		switch {
@@ -204,10 +206,6 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 			return multiplyStrings(right, left)
 		case operator == "+":
 			return addStrings(left, right)
-		case operator == "==":
-			return FALSE
-		case operator == "!=":
-			return TRUE
 		}
 	case left.Type() == object.INTEGER_OBJ:
 		switch {
@@ -224,10 +222,6 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 		case right.Type() == object.FLOAT_OBJ:
 			return evalFloatInfixExpression(operator, left, right)
 		}
-	case operator == "==":
-		return nativeBoolToBooleanObject(left == right)
-	case operator == "!=":
-		return nativeBoolToBooleanObject(left != right)
 	default:
 		return newError("unknown operator: %s %s %s",
 			left.Type(), operator, right.Type())
@@ -253,10 +247,6 @@ func evalIntegerInfixExpression(operator string, left object.Object, right objec
 		return nativeBoolToBooleanObject(lVal < rVal)
 	case ">":
 		return nativeBoolToBooleanObject(lVal > rVal)
-	case "==":
-		return nativeBoolToBooleanObject(lVal == rVal)
-	case "!=":
-		return nativeBoolToBooleanObject(lVal != rVal)
 	case "%":
 		return &object.Integer{Value: lVal % rVal}
 	default:
@@ -281,10 +271,6 @@ func evalFloatInfixExpression(operator string, left object.Object, right object.
 		return nativeBoolToBooleanObject(lVal < rVal)
 	case ">":
 		return nativeBoolToBooleanObject(lVal > rVal)
-	case "==":
-		return nativeBoolToBooleanObject(lVal == rVal)
-	case "!=":
-		return nativeBoolToBooleanObject(lVal != rVal)
 	case "%":
 		return &object.Float{Value: math.Mod(lVal, rVal)}
 	default:
@@ -297,19 +283,10 @@ func intToFloat(integer object.Object) *object.Float {
 }
 
 func evalStringInfixExpression(operator string, left object.Object, right object.Object) object.Object {
-	lVal := left.(*object.String).Value
-	rVal := right.(*object.String).Value
-
-	switch operator {
-	case "+":
+	if operator == "+" {
 		return addStrings(left, right)
-	case "==":
-		return nativeBoolToBooleanObject(lVal == rVal)
-	case "!=":
-		return nativeBoolToBooleanObject(lVal != rVal)
-	default:
-		return NIL
 	}
+	return NIL
 }
 
 func multiplyStrings(str object.Object, integer object.Object) *object.String {
@@ -332,10 +309,6 @@ func evalArrayInfixExpression(operator string, left object.Object, right object.
 	switch operator {
 	case "+":
 		return addElements(lEls, rEls)
-	case "==":
-		return nativeBoolToBooleanObject(elComparison(lEls, rEls))
-	case "!=":
-		return nativeBoolToBooleanObject(!elComparison(lEls, rEls))
 	default:
 		return NIL
 	}
@@ -352,37 +325,29 @@ func addElements(left []object.Object, right []object.Object) *object.Array {
 	return &object.Array{Elements: elements}
 }
 
-func elComparison(left []object.Object, right []object.Object) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for i, l := range left {
-		r := right[i]
-		if l.Type() != r.Type() {
-			return false
-		}
+func evalHashInfixExpression(operator string, left object.Object, right object.Object) object.Object {
+	lPairs := left.(*object.Hash).Pairs
+	rPairs := right.(*object.Hash).Pairs
 
-		switch {
-		case l.Type() == object.ARRAY_OBJ:
-			if !elComparison(
-				l.(*object.Array).Elements,
-				r.(*object.Array).Elements,
-			) {
-				return false
-			}
-		default:
-			lHash, ok := l.(object.Hashable)
-			if !ok && l.Inspect() != r.Inspect() {
-				return false
-			} else {
-				rHash, _ := r.(object.Hashable)
-				if lHash.HashKey().Value != rHash.HashKey().Value {
-					return false
-				}
-			}
-		}
+	switch operator {
+	case "+":
+		return addPairs(lPairs, rPairs)
+	default:
+		return NIL
 	}
-	return true
+}
+
+func addPairs(left map[object.HashKey]object.HashPair, right map[object.HashKey]object.HashPair) object.Object {
+	pairs := make(map[object.HashKey]object.HashPair)
+
+	for k, v := range left {
+		pairs[k] = v
+	}
+	for k, v := range right {
+		pairs[k] = v
+	}
+
+	return &object.Hash{Pairs: pairs}
 }
 
 // JEM: This is pretty neat

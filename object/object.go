@@ -29,6 +29,7 @@ type Object interface {
 	Type() ObjectType
 	Inspect() string
 	String() String
+	Equal(o Object) bool
 }
 
 type Integer struct {
@@ -41,6 +42,10 @@ func (i *Integer) String() String   { return String{Value: i.Inspect()} }
 func (i *Integer) Float() Float     { return Float{Value: float64(i.Value)} }
 func (i *Integer) HashKey() HashKey {
 	return HashKey{Type: i.Type(), Value: float64(i.Value)}
+}
+func (i *Integer) Equal(o Object) bool {
+	comp, ok := o.(*Integer)
+	return ok && comp.Value == i.Value
 }
 
 type Float struct {
@@ -57,6 +62,10 @@ func (f *Float) Type() ObjectType { return FLOAT_OBJ }
 func (f *Float) String() String   { return String{Value: f.Inspect()} }
 func (f *Float) HashKey() HashKey {
 	return HashKey{Type: f.Type(), Value: f.Value}
+}
+func (f *Float) Equal(o Object) bool {
+	comp, ok := o.(*Float)
+	return ok && comp.Value == f.Value
 }
 
 type Boolean struct {
@@ -75,6 +84,10 @@ func (b *Boolean) HashKey() HashKey {
 	}
 	return HashKey{Type: b.Type(), Value: value}
 }
+func (b *Boolean) Equal(o Object) bool {
+	comp, ok := o.(*Boolean)
+	return ok && comp.Value == b.Value
+}
 
 type String struct {
 	Value string
@@ -83,6 +96,10 @@ type String struct {
 func (s *String) Type() ObjectType { return STRING_OBJ }
 func (s *String) Inspect() string  { return s.Value }
 func (s *String) String() String   { return *s }
+func (s *String) Equal(o Object) bool {
+	comp, ok := o.(*String)
+	return ok && comp.Value == s.Value
+}
 
 // JEM: Could cache these values to optimize for performance
 func (s *String) HashKey() HashKey {
@@ -98,12 +115,20 @@ type Return struct {
 func (r *Return) Type() ObjectType { return RETURN_OBJ }
 func (r *Return) Inspect() string  { return fmt.Sprintf("%v", r.Value.Inspect()) }
 func (r *Return) String() String   { return String{Value: r.Inspect()} }
+func (r *Return) Equal(o Object) bool {
+	comp, ok := o.(*Return)
+	return ok && comp.Value == r.Value
+}
 
 type Nil struct{}
 
 func (n *Nil) Type() ObjectType { return NIL_OBJ }
 func (n *Nil) Inspect() string  { return "nil" }
 func (n *Nil) String() String   { return String{Value: n.Inspect()} }
+func (n *Nil) Equal(o Object) bool {
+	_, ok := o.(*Nil)
+	return ok
+}
 
 type Error struct {
 	Message string
@@ -115,6 +140,10 @@ type Error struct {
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
 func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
 func (e *Error) String() String   { return String{Value: e.Inspect()} }
+func (r *Error) Equal(o Object) bool {
+	comp, ok := o.(*Error)
+	return ok && comp.Message == r.Message
+}
 
 type Function struct {
 	Parameters []*ast.Identifier
@@ -142,6 +171,12 @@ func (f *Function) Inspect() string {
 }
 func (f *Function) String() String { return String{Value: f.Inspect()} }
 
+// JEM: Could properly implement function comparison
+func (f *Function) Equal(o Object) bool {
+	_, ok := o.(*Function)
+	return ok && false
+}
+
 type BuiltinFunction func(args ...Object) Object
 
 type Builtin struct {
@@ -151,6 +186,12 @@ type Builtin struct {
 func (b *Builtin) Type() ObjectType { return BUILTIN_OBJ }
 func (b *Builtin) Inspect() string  { return "builtin function" }
 func (b *Builtin) String() String   { return String{Value: b.Inspect()} }
+
+// JEM: Could properly implement builtin comparison
+func (b *Builtin) Equal(o Object) bool {
+	_, ok := o.(*Builtin)
+	return ok && false
+}
 
 type Array struct {
 	Elements []Object
@@ -170,6 +211,18 @@ func (a *Array) Inspect() string {
 	return out.String()
 }
 func (a *Array) String() String { return String{Value: a.Inspect()} }
+func (a *Array) Equal(o Object) bool {
+	comp, ok := o.(*Array)
+	if !ok || len(comp.Elements) != len(a.Elements) {
+		return false
+	}
+	for i, el := range a.Elements {
+		if !el.Equal(comp.Elements[i]) {
+			return false
+		}
+	}
+	return true
+}
 
 type PureFunction struct {
 	Parameters []*ast.Identifier
@@ -212,6 +265,12 @@ func (f *PureFunction) Set(args []Object, val Object) Object {
 	return val
 }
 
+// JEM: Could properly implement function comparison
+func (f *PureFunction) Equal(o Object) bool {
+	_, ok := o.(*PureFunction)
+	return ok && false
+}
+
 func objectsToString(args []Object) string {
 	var res string
 	for _, arg := range args {
@@ -243,6 +302,20 @@ func (h *Hash) Inspect() string {
 	return out.String()
 }
 func (h *Hash) String() String { return String{Value: h.Inspect()} }
+func (h *Hash) Equal(o Object) bool {
+	comp, ok := o.(*Hash)
+	if !ok || len(h.Pairs) != len(comp.Pairs) {
+		return false
+	}
+
+	for k, v := range h.Pairs {
+		if !(v.Value.Equal(comp.Pairs[k].Value) &&
+			v.Key.Equal(comp.Pairs[k].Key)) {
+			return false
+		}
+	}
+	return true
+}
 
 type HashKey struct {
 	Type  ObjectType

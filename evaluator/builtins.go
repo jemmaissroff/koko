@@ -16,6 +16,8 @@ var builtins = map[string]*object.Builtin{
 			switch args[0].(type) {
 			case *object.Array:
 				value = int64(len(args[0].(*object.Array).Elements))
+			case *object.Hash:
+				value = int64(len(args[0].(*object.Hash).Pairs))
 			default:
 				value = int64(len(args[0].String().Value))
 			}
