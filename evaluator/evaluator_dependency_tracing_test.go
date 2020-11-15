@@ -92,6 +92,12 @@ func TestDependencyTrackingInSubFunctions(t *testing.T) {
 	assertObjectDepsEqual(t, res, []string{"0"})
 }
 
+func TestDependencyTrackingInBasicFunctionWithArrays(t *testing.T) {
+	program := "let f = pfn(a) { a[2] + a[3] }; deps(f, [1,2,3,4,5])"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0|2", "0|3"})
+}
+
 /**
 This section contains larger "integration tests".
 **/
