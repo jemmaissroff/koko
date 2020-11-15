@@ -332,6 +332,8 @@ func evalHashInfixExpression(operator string, left object.Object, right object.O
 	switch operator {
 	case "+":
 		return addPairs(lPairs, rPairs)
+	case "-":
+		return subtractPairs(lPairs, rPairs)
 	default:
 		return NIL
 	}
@@ -345,6 +347,21 @@ func addPairs(left map[object.HashKey]object.HashPair, right map[object.HashKey]
 	}
 	for k, v := range right {
 		pairs[k] = v
+	}
+
+	return &object.Hash{Pairs: pairs}
+}
+
+func subtractPairs(left map[object.HashKey]object.HashPair, right map[object.HashKey]object.HashPair) object.Object {
+	pairs := make(map[object.HashKey]object.HashPair)
+
+	for k, v := range left {
+		pairs[k] = v
+	}
+	for k, v := range right {
+		if pairs[k].Value.Equal(v.Value) {
+			delete(pairs, k)
+		}
 	}
 
 	return &object.Hash{Pairs: pairs}
