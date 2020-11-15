@@ -212,26 +212,6 @@ var builtins = map[string]*object.Builtin{
 			return &object.Integer{Value: int64(rand.Intn(int(arg.Value)))}
 		},
 	},
-	// this is an internal function which allows us to debug dependency tracing
-	// TODO (Peter) possibly add an interface which pretty prints deps for the user
-	// directly returns an object with untranslated dependency information
-	// this object should actually never be used in the program because it can poison the dependency
-	// tracing system
-	"deps": &object.Builtin{
-		Fn: func(args ...object.Object) object.Object {
-			// TODO (Peter) clean this up
-			if len(args) < 1 {
-				return newError("wrong number of arguments. got=%d, need at least=%d",
-					len(args), 1)
-			}
-			// TODO (Peter) validate fn is really a function
-			fn := args[0]
-			fnRes := applyFunction(fn, args[1:])
-			res := object.DebugTraceMetadata{}
-			res.SetDebugMetadata(fnRes.GetMetadata())
-			return &res
-		},
-	},
 }
 
 func validateNumberOfArgs(length int, args []object.Object) object.Object {

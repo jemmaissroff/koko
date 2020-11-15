@@ -327,11 +327,13 @@ type DebugTraceMetadata struct {
 
 func (d *DebugTraceMetadata) Type() ObjectType { return TRACE_OBJ }
 func (d *DebugTraceMetadata) Inspect() string {
-	return "Debug Trace (This Object Should Almost Never Be Used)"
+	return fmt.Sprintf("Debug Trace (Warning This Object Should Almost Never Be Used)\ndeps: %+v", d.metadata)
 }
-func (d *DebugTraceMetadata) String() String                          { return String{Value: d.Inspect()} }
-func (d *DebugTraceMetadata) GetMetadata() TraceMetadata              { return TraceMetadata{} }
-func (d *DebugTraceMetadata) SetMetadata(metadata TraceMetadata)      {}
-func (d *DebugTraceMetadata) Copy() Object                            { return &DebugTraceMetadata{} }
-func (d *DebugTraceMetadata) GetDebugMetadata() TraceMetadata         { return d.metadata }
-func (d *DebugTraceMetadata) SetDebugMetadata(metadata TraceMetadata) { d.metadata = metadata }
+func (d *DebugTraceMetadata) String() String                     { return String{Value: d.Inspect()} }
+func (d *DebugTraceMetadata) GetMetadata() TraceMetadata         { return TraceMetadata{} }
+func (d *DebugTraceMetadata) SetMetadata(metadata TraceMetadata) {}
+func (d *DebugTraceMetadata) Copy() Object                       { return &DebugTraceMetadata{d.metadata} }
+func (d *DebugTraceMetadata) GetDebugMetadata() TraceMetadata    { return d.metadata }
+func (d *DebugTraceMetadata) SetDebugMetadata(metadata TraceMetadata) {
+	d.metadata = metadata
+}

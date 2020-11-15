@@ -1,9 +1,13 @@
 package evaluator
 
 import (
+	"fmt"
+	"math/rand"
 	"monkey/lexer"
 	"monkey/object"
 	"monkey/parser"
+	"sort"
+	"strconv"
 	"testing"
 )
 
@@ -12,8 +16,6 @@ func testEvalAndGetDeps(input string, fname string) object.Object {
 	p := parser.New(l)
 	program := p.ParseProgram()
 	env := object.NewEnvironment()
-	env.Get('f')
-
 	return Eval(program, env)
 }
 
@@ -31,7 +33,12 @@ func strEquals(t *testing.T, testStr string, truthStr string) {
 }*/
 
 func assertObjectDepsEqual(t *testing.T, res object.Object, expectedDeps []string) {
-	deps := res.GetMetadata().Dependencies
+	debugTraceObj, ok := res.(*object.DebugTraceMetadata)
+	if !ok {
+		t.Errorf("Expected Debug Trace Object got %+v\n", res)
+		return
+	}
+	deps := debugTraceObj.GetDebugMetadata().Dependencies
 	expectedDepsMap := make(map[string]bool)
 	for _, d := range expectedDeps {
 		expectedDepsMap[d] = true
@@ -53,15 +60,42 @@ func assertObjectDepsEqual(t *testing.T, res object.Object, expectedDeps []strin
 }
 
 func TestDependencyTrackingInBasicFunctionWithIntegers(t *testing.T) {
-	simpleFunctionProgram := "let f = pfn(a, b) { b }; f(1, 2)"
-	res := testEval(simpleFunctionProgram)
+	program := "let f = pfn(a, b) { b }; deps(f, 1, 2)"
+	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"1"})
+}
+
+func TestDependencyTrackingInBasicFunctionWithIntegerAddition(t *testing.T) {
+	program := "let f = pfn(a, b, c) { a + c }; deps(f, 1, 2, 3)"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0", "2"})
+}
+
+func TestDependencyTrackingInBasicFunctionWithIntegerMultiplication(t *testing.T) {
+	program := "let f = pfn(a, b, c) { a * b * c }; deps(f, 1, 2, 0)"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"2"})
+}
+
+func TestDependencyTrackingInBasicFunctionWithConditional(t *testing.T) {
+	program := "let f = pfn(a, b, c) { if (a > 0) { b } else { c } }; deps(f, 1, 2, 0)"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0", "1"})
+	program = "let f = pfn(a, b, c) { if (a > 0) { b } else { c } }; deps(f, -1, 2, 0)"
+	res = testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0", "2"})
+}
+
+func TestDependencyTrackingInSubFunctions(t *testing.T) {
+	program := "let g = pfn(a, b) { b }; let f = pfn(a, b, c) { g(c, a) }; deps(f, 1, 2, 3)"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0"})
 }
 
 /**
 This section contains larger "integration tests".
 **/
-/*func TestMergeSortOnInts(t *testing.T) {
+func TestMergeSortOnInts(t *testing.T) {
 	rand.Seed(1)
 	for i := 0; i < 20; i++ {
 		arrLen := rand.Intn(100)
@@ -106,4 +140,4 @@ This section contains larger "integration tests".
 		expectedStr += "]"
 		strEquals(t, outStr, expectedStr)
 	}
-}*/
+}
