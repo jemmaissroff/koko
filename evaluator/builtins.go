@@ -194,6 +194,43 @@ var builtins = map[string]*object.Builtin{
 			return &object.Array{Elements: arr.Elements[takeNum:]}
 		},
 	},
+	"keys": &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
+			}
+
+			if args[0].Type() != object.HASH_OBJ {
+				return newError("argument to `keys` must be HASH, got %s", args[0].Type())
+			}
+
+			hash := args[0].(*object.Hash)
+			elements := make([]object.Object, 0, len(hash.Pairs))
+			for _, hashPair := range hash.Pairs {
+				elements = append(elements, hashPair.Key)
+			}
+			return &object.Array{Elements: elements}
+		},
+	},
+	"values": &object.Builtin{
+		// JEM: Possible refactor to pull these out
+		Fn: func(args ...object.Object) object.Object {
+			if err := validateNumberOfArgs(1, args); err != NIL {
+				return err
+			}
+
+			if args[0].Type() != object.HASH_OBJ {
+				return newError("argument to `keys` must be HASH, got %s", args[0].Type())
+			}
+
+			hash := args[0].(*object.Hash)
+			elements := make([]object.Object, 0, len(hash.Pairs))
+			for _, hashPair := range hash.Pairs {
+				elements = append(elements, hashPair.Value)
+			}
+			return &object.Array{Elements: elements}
+		},
+	},
 	"rando": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
 			if err := validateNumberOfArgs(1, args); err != NIL {
