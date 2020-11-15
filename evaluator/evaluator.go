@@ -17,6 +17,8 @@ var (
 	EMPTY_STRING = &object.String{Value: ""}
 	ZERO_INTEGER = &object.Integer{Value: 0}
 	ZERO_FLOAT   = &object.Float{Value: 0}
+	EMPTY_ARRAY  = &object.Array{Elements: []object.Object{}}
+	EMPTY_HASH   = &object.Hash{Pairs: make(map[object.HashKey]object.HashPair)}
 )
 
 func Eval(node ast.Node, env *object.Environment) object.Object {
@@ -110,6 +112,9 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return applyFunction(function, args)
 	case *ast.ArrayLiteral:
 		elements := evalExpressions(node.Elements, env)
+		if len(elements) == 0 {
+			return EMPTY_ARRAY
+		}
 		if len(elements) == 1 && isError(elements[0]) {
 			return elements[0]
 		}
@@ -418,6 +423,10 @@ func isTruthy(obj object.Object) bool {
 		return false
 	case EMPTY_STRING:
 		return false
+	case EMPTY_ARRAY:
+		return false
+	case EMPTY_HASH:
+		return false
 	default:
 		return true
 	}
@@ -565,6 +574,9 @@ func evalHashLiteral(
 	env *object.Environment,
 ) object.Object {
 	pairs := make(map[object.HashKey]object.HashPair)
+	if len(node.Pairs) == 0 {
+		return EMPTY_HASH
+	}
 
 	for keyNode, valueNode := range node.Pairs {
 		key := Eval(keyNode, env)
