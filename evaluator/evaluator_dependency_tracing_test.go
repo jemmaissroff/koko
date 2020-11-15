@@ -49,7 +49,7 @@ func assertObjectDepsEqual(t *testing.T, res object.Object, expectedDeps []strin
 		}
 	}
 	// check that we have no other deps
-	for k, v := range res.GetMetadata().Dependencies {
+	for k, v := range deps {
 		if v {
 			if ok, _ := expectedDepsMap[k]; !ok {
 				t.Errorf("Extra Dependency %s on object %+v\n", k, res)
@@ -96,6 +96,27 @@ func TestDependencyTrackingInBasicFunctionWithArrays(t *testing.T) {
 	program := "let f = pfn(a) { a[2] + a[3] }; deps(f, [1,2,3,4,5])"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0|2", "0|3"})
+}
+
+func TestDependencyTrackingInFunctionWithArraysWhichReturnAnArray(t *testing.T) {
+	program := "let f = pfn(a) { [a[0],a[1],a[2],a[3]] }; deps(f, [1,2,3,4,5])"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0|0", "0|1", "0|2", "0|3"})
+}
+
+func TestDependencyTrackingInSubFunctionsWithArrays(t *testing.T) {
+	program := "let f = pfn(a) { [a[0],a[1],a[2],a[3]] }; let g = pfn(a) { f(a)[0] + f(a)[2] }; deps(g, [1,2,3,4,5])"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0|0", "0|2"})
+}
+
+func TestDependencyTrackingInSubFunctionsWithArrayConcatenation(t *testing.T) {
+	program := "let f = pfn(a, b) { (b + a)[2] }; deps(f, [1,2], [3, 4])"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0|0", "1#"})
+	program = "let f = pfn(a, b) { (b + a)[1] }; deps(f, [1,2], [3, 4])"
+	res = testEval(program)
+	assertObjectDepsEqual(t, res, []string{"1|1"})
 }
 
 /**
