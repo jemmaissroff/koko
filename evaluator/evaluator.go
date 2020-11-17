@@ -94,7 +94,6 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		params := node.Parameters
 		body := node.Body
 		return &object.Function{Parameters: params, Env: env, Body: body}
-		// JEM: You left off here. Need to implement a pure function literal
 	case *ast.PureFunctionLiteral:
 		params := node.Parameters
 		body := node.Body
