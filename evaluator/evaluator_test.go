@@ -237,7 +237,7 @@ func TestIfExpressionWithError(t *testing.T) {
 }
 
 func testNilObject(t *testing.T, obj object.Object) bool {
-	if obj != NIL {
+	if obj != object.NIL {
 		t.Errorf("object is not NULL. got=%T (%+v)", obj, obj)
 		return false
 	}
@@ -511,7 +511,7 @@ func TestHashLiterals(t *testing.T) {
 	expected := map[object.HashKey]int64{
 		(&object.String{Value: "one"}).HashKey():   1,
 		(&object.String{Value: "two"}).HashKey():   2,
-		(&object.String{Value: "three"}).HashKey(): 3, (&object.Integer{Value: 4}).HashKey(): 4, TRUE.HashKey(): 5, FALSE.HashKey(): 6,
+		(&object.String{Value: "three"}).HashKey(): 3, (&object.Integer{Value: 4}).HashKey(): 4, object.TRUE.HashKey(): 5, object.FALSE.HashKey(): 6,
 	}
 	if len(result.Pairs) != len(expected) {
 		t.Fatalf("Hash has wrong num of pairs. got=%d", len(result.Pairs))

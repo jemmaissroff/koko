@@ -25,12 +25,28 @@ const (
 	HASH_OBJ     = "HASH"
 )
 
+var (
+	NIL = &Nil{}
+
+	TRUE  = &Boolean{Value: true}
+	FALSE = &Boolean{Value: false}
+
+	EMPTY_STRING = &String{Value: ""}
+	ZERO_INTEGER = &Integer{Value: 0}
+	ZERO_FLOAT   = &Float{Value: 0}
+	EMPTY_ARRAY  = &Array{Elements: []Object{}}
+	EMPTY_HASH   = &Hash{Pairs: make(map[HashKey]HashPair)}
+)
+
 type Object interface {
 	Type() ObjectType
 	Inspect() string
 	String() String
 	Equal(o Object) bool
+	Falsey() Object
 }
+
+func Bool(o Object) bool { return !o.Equal(o.Falsey()) }
 
 type Integer struct {
 	Value int64
@@ -47,6 +63,7 @@ func (i *Integer) Equal(o Object) bool {
 	comp, ok := o.(*Integer)
 	return ok && comp.Value == i.Value
 }
+func (i *Integer) Falsey() Object { return ZERO_INTEGER }
 
 type Float struct {
 	Value float64
@@ -67,6 +84,7 @@ func (f *Float) Equal(o Object) bool {
 	comp, ok := o.(*Float)
 	return ok && comp.Value == f.Value
 }
+func (f *Float) Falsey() Object { return ZERO_FLOAT }
 
 type Boolean struct {
 	Value bool
@@ -88,6 +106,7 @@ func (b *Boolean) Equal(o Object) bool {
 	comp, ok := o.(*Boolean)
 	return ok && comp.Value == b.Value
 }
+func (b *Boolean) Falsey() Object { return FALSE }
 
 type String struct {
 	Value string
@@ -100,6 +119,7 @@ func (s *String) Equal(o Object) bool {
 	comp, ok := o.(*String)
 	return ok && comp.Value == s.Value
 }
+func (s *String) Falsey() Object { return EMPTY_STRING }
 
 // JEM: Could cache these values to optimize for performance
 func (s *String) HashKey() HashKey {
@@ -119,6 +139,7 @@ func (r *Return) Equal(o Object) bool {
 	comp, ok := o.(*Return)
 	return ok && comp.Value == r.Value
 }
+func (r *Return) Falsey() Object { return NIL }
 
 type Nil struct{}
 
@@ -129,6 +150,7 @@ func (n *Nil) Equal(o Object) bool {
 	_, ok := o.(*Nil)
 	return ok
 }
+func (n *Nil) Falsey() Object { return NIL }
 
 type Error struct {
 	Message string
@@ -144,6 +166,7 @@ func (r *Error) Equal(o Object) bool {
 	comp, ok := o.(*Error)
 	return ok && comp.Message == r.Message
 }
+func (e *Error) Falsey() Object { return NIL }
 
 type Function struct {
 	Parameters []*ast.Identifier
@@ -176,6 +199,7 @@ func (f *Function) Equal(o Object) bool {
 	_, ok := o.(*Function)
 	return ok && false
 }
+func (f *Function) Falsey() Object { return NIL }
 
 type BuiltinFunction func(args ...Object) Object
 
@@ -192,6 +216,7 @@ func (b *Builtin) Equal(o Object) bool {
 	_, ok := o.(*Builtin)
 	return ok && false
 }
+func (b *Builtin) Falsey() Object { return NIL }
 
 type Array struct {
 	Elements []Object
@@ -223,6 +248,7 @@ func (a *Array) Equal(o Object) bool {
 	}
 	return true
 }
+func (a *Array) Falsey() Object { return EMPTY_ARRAY }
 
 type PureFunction struct {
 	Parameters []*ast.Identifier
@@ -259,6 +285,7 @@ func (f *PureFunction) Get(args []Object) (Object, bool) {
 	obj, ok := f.Cache[objectsToString(args)]
 	return obj, ok
 }
+func (f *PureFunction) Falsey() Object { return NIL }
 
 func (f *PureFunction) Set(args []Object, val Object) Object {
 	f.Cache[objectsToString(args)] = val
@@ -316,6 +343,7 @@ func (h *Hash) Equal(o Object) bool {
 	}
 	return true
 }
+func (h *Hash) Falsey() Object { return EMPTY_HASH }
 
 type HashKey struct {
 	Type  ObjectType

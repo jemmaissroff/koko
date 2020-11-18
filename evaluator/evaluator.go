@@ -8,19 +8,6 @@ import (
 	"math"
 )
 
-var (
-	NIL = &object.Nil{}
-
-	TRUE  = &object.Boolean{Value: true}
-	FALSE = &object.Boolean{Value: false}
-
-	EMPTY_STRING = &object.String{Value: ""}
-	ZERO_INTEGER = &object.Integer{Value: 0}
-	ZERO_FLOAT   = &object.Float{Value: 0}
-	EMPTY_ARRAY  = &object.Array{Elements: []object.Object{}}
-	EMPTY_HASH   = &object.Hash{Pairs: make(map[object.HashKey]object.HashPair)}
-)
-
 func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
 
@@ -41,27 +28,11 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return &object.Return{Value: val}
 
 	case *ast.IntegerLiteral:
-		switch node.Value {
-		case 0:
-			return ZERO_INTEGER
-		default:
-			return &object.Integer{Value: node.Value}
-		}
+		return &object.Integer{Value: node.Value}
 	case *ast.FloatLiteral:
-		switch node.Value {
-		case 0:
-			return ZERO_FLOAT
-		default:
-			return &object.Float{Value: node.Value}
-		}
+		return &object.Float{Value: node.Value}
 	case *ast.StringLiteral:
-		switch node.Value {
-		case "":
-			return EMPTY_STRING
-		default:
-			return &object.String{Value: node.Value}
-
-		}
+		return &object.String{Value: node.Value}
 	case *ast.Boolean:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.PrefixExpression:
@@ -111,9 +82,6 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return applyFunction(function, args)
 	case *ast.ArrayLiteral:
 		elements := evalExpressions(node.Elements, env)
-		if len(elements) == 0 {
-			return EMPTY_ARRAY
-		}
 		if len(elements) == 1 && isError(elements[0]) {
 			return elements[0]
 		}
@@ -290,7 +258,7 @@ func evalStringInfixExpression(operator string, left object.Object, right object
 	if operator == "+" {
 		return addStrings(left, right)
 	}
-	return NIL
+	return object.NIL
 }
 
 func multiplyStrings(str object.Object, integer object.Object) *object.String {
@@ -314,7 +282,7 @@ func evalArrayInfixExpression(operator string, left object.Object, right object.
 	case "+":
 		return addElements(lEls, rEls)
 	default:
-		return NIL
+		return object.NIL
 	}
 }
 
@@ -339,7 +307,7 @@ func evalHashInfixExpression(operator string, left object.Object, right object.O
 	case "-":
 		return subtractPairs(lPairs, rPairs)
 	default:
-		return NIL
+		return object.NIL
 	}
 }
 
@@ -373,7 +341,7 @@ func subtractPairs(left map[object.HashKey]object.HashPair, right map[object.Has
 
 // JEM: This is pretty neat
 func evalBangOperatorExpression(right object.Object) object.Object {
-	return nativeBoolToBooleanObject(!isTruthy(right))
+	return nativeBoolToBooleanObject(!object.Bool(right))
 }
 
 func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
@@ -388,9 +356,9 @@ func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 
 func nativeBoolToBooleanObject(input bool) *object.Boolean {
 	if input {
-		return TRUE
+		return object.TRUE
 	}
-	return FALSE
+	return object.FALSE
 }
 
 func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Object {
@@ -399,35 +367,12 @@ func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Obje
 		return condition
 	}
 
-	if isTruthy(condition) {
+	if object.Bool(condition) {
 		return Eval(ie.Consequence, env)
 	} else if ie.Alternative != nil {
 		return Eval(ie.Alternative, env)
 	} else {
-		return NIL
-	}
-}
-
-func isTruthy(obj object.Object) bool {
-	switch obj {
-	case NIL:
-		return false
-	case FALSE:
-		return false
-	case TRUE:
-		return true
-	case ZERO_FLOAT:
-		return false
-	case ZERO_INTEGER:
-		return false
-	case EMPTY_STRING:
-		return false
-	case EMPTY_ARRAY:
-		return false
-	case EMPTY_HASH:
-		return false
-	default:
-		return true
+		return object.NIL
 	}
 }
 
@@ -487,7 +432,7 @@ func evalArrayIndexExpression(array, index object.Object) object.Object {
 
 	// Out of bounds
 	if idx < 0 || idx > max {
-		return NIL
+		return object.NIL
 	}
 
 	return arrayObject.Elements[idx]
@@ -501,7 +446,7 @@ func evalHashIndexExpression(hash, index object.Object) object.Object {
 	}
 	pair, ok := hashObject.Pairs[key.HashKey()]
 	if !ok {
-		return NIL
+		return object.NIL
 	}
 	return pair.Value
 }
@@ -573,10 +518,6 @@ func evalHashLiteral(
 	env *object.Environment,
 ) object.Object {
 	pairs := make(map[object.HashKey]object.HashPair)
-	if len(node.Pairs) == 0 {
-		return EMPTY_HASH
-	}
-
 	for keyNode, valueNode := range node.Pairs {
 		key := Eval(keyNode, env)
 

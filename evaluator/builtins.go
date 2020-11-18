@@ -8,7 +8,7 @@ import (
 var builtins = map[string]*object.Builtin{
 	"len": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 
@@ -26,7 +26,7 @@ var builtins = map[string]*object.Builtin{
 	},
 	"type": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 
@@ -35,7 +35,7 @@ var builtins = map[string]*object.Builtin{
 	},
 	"string": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 
@@ -46,16 +46,16 @@ var builtins = map[string]*object.Builtin{
 	},
 	"bool": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 
-			return &object.Boolean{Value: isTruthy(args[0])}
+			return &object.Boolean{Value: object.Bool(args[0])}
 		},
 	},
 	"int": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 
@@ -65,7 +65,7 @@ var builtins = map[string]*object.Builtin{
 			case *object.Float:
 				return &object.Integer{Value: int64(arg.Value)}
 			case *object.Boolean:
-				if arg == TRUE {
+				if arg == object.TRUE {
 					return &object.Integer{Value: 1}
 				} else {
 					return &object.Integer{Value: 0}
@@ -79,7 +79,7 @@ var builtins = map[string]*object.Builtin{
 	},
 	"first": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 
@@ -91,12 +91,12 @@ var builtins = map[string]*object.Builtin{
 			if len(arr.Elements) > 0 {
 				return arr.Elements[0]
 			}
-			return NIL
+			return object.NIL
 		},
 	},
 	"last": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 
@@ -109,12 +109,12 @@ var builtins = map[string]*object.Builtin{
 			if length > 0 {
 				return arr.Elements[length-1]
 			}
-			return NIL
+			return object.NIL
 		},
 	},
 	"rest": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 			if args[0].Type() != object.ARRAY_OBJ {
@@ -128,12 +128,12 @@ var builtins = map[string]*object.Builtin{
 				copy(newElements, arr.Elements[1:length])
 				return &object.Array{Elements: newElements}
 			}
-			return NIL
+			return object.NIL
 		},
 	},
 	"push": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(2, args); err != NIL {
+			if err := validateNumberOfArgs(2, args); err != object.NIL {
 				return err
 			}
 
@@ -149,12 +149,12 @@ var builtins = map[string]*object.Builtin{
 				newElements[length] = args[1]
 				return &object.Array{Elements: newElements}
 			}
-			return NIL
+			return object.NIL
 		},
 	},
 	"take": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(2, args); err != NIL {
+			if err := validateNumberOfArgs(2, args); err != object.NIL {
 				return err
 			}
 
@@ -175,7 +175,7 @@ var builtins = map[string]*object.Builtin{
 	},
 	"drop": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(2, args); err != NIL {
+			if err := validateNumberOfArgs(2, args); err != object.NIL {
 				return err
 			}
 
@@ -196,7 +196,7 @@ var builtins = map[string]*object.Builtin{
 	},
 	"keys": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 
@@ -215,7 +215,7 @@ var builtins = map[string]*object.Builtin{
 	"values": &object.Builtin{
 		// JEM: Possible refactor to pull these out
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 
@@ -233,7 +233,7 @@ var builtins = map[string]*object.Builtin{
 	},
 	"rando": &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			if err := validateNumberOfArgs(1, args); err != NIL {
+			if err := validateNumberOfArgs(1, args); err != object.NIL {
 				return err
 			}
 
@@ -249,5 +249,5 @@ func validateNumberOfArgs(length int, args []object.Object) object.Object {
 			len(args), length)
 	}
 
-	return NIL
+	return object.NIL
 }
