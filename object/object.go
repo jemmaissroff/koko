@@ -31,7 +31,7 @@ type TraceMetadata struct {
 }
 
 func MergeDependencies(a TraceMetadata, b TraceMetadata) TraceMetadata {
-	res := TraceMetadata{Dependencies: make(map[string]bool)}
+	/*res := TraceMetadata{Dependencies: make(map[string]bool)}
 	for k, v := range a.Dependencies {
 		if v == true {
 			res.Dependencies[k] = true
@@ -42,7 +42,8 @@ func MergeDependencies(a TraceMetadata, b TraceMetadata) TraceMetadata {
 			res.Dependencies[k] = true
 		}
 	}
-	return res
+	return res*/
+	return a
 }
 
 type Object interface {

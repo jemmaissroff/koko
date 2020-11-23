@@ -60,7 +60,7 @@ func BenchmarkMergeSort(b *testing.B) {
 
 	let RAND_CONST = 10000
 	let random_array = fn(len) { if (len == 0) { [] } else { [rando(RAND_CONST)] + random_array(len - 1) } }
-    let ra = random_array(100)
+    let ra = random_array(200)
 
 	let repeat_merge_sort_with_modifications = fn(repeats, arr) {
 		if (repeats != 0) {
@@ -69,7 +69,7 @@ func BenchmarkMergeSort(b *testing.B) {
 		   repeat_merge_sort_with_modifications(repeats - 1, get_n_elements(ra, 0, mod_ind) + [rando(RAND_CONST)] + get_n_elements(ra, mod_ind, len(ra) - mod_ind))
 	   }
    }
-   repeat_merge_sort_with_modifications(10, ra)
+   repeat_merge_sort_with_modifications(200, ra)
 	`)
 	for i := 0; i < b.N; i++ {
 		evaluator.Eval(program, env)
