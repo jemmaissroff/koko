@@ -10,7 +10,6 @@ To run a repl, execute the following command after cloning the repo:
 
 `go run main.go`
 
-
 ## Types
 
 ### Boolean
@@ -267,10 +266,44 @@ Returns a random integer in the range [0,int)
 3
 ```
 
-
 ## Whitespace
 
 Whitespace is not relevant in this programming language. Use as much, or as little, as you'd like. There is not (yet) any existing style guide. Although I really like Go's formatter, so might bake some auto-formatted style into the language at some future point!
 
+
+## Example: Writing `Map`
+
+This is a sample `map` program which demonstrates some key features of the language.
+
+```
+let map = fn(array, function) { if (type(array) != "ARRAY") {
+    return "Must pass an array as first arg, not " + type(array)
+  } 
+  if (type(function) != "FUNCTION") {
+	  if (type(function) != "BUILTIN") {
+		  return "Must pass a function or builtin as second arg, not " + type(function)
+	  }
+  }
+  
+  if (len(array) > 0) {
+    [function(first(array))] + map(rest(array), function)
+  } else {
+    []
+  }
+}
+
+let add_one = fn(x) { x + 1 }
+
+map([1,"",true,{}], bool)
+map([1,"str", 7.3], add_one)
+```
+outputs:
+
+```
+[true, false, true, false]
+[2, str1, 8.3]
+```
+
 [interpreter-book]: https://interpreterbook.com/
 [new-issue]: https://github.com/jemmaissroff/go-interpreter/issues/new
+
