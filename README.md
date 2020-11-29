@@ -13,17 +13,167 @@ To run a repl, execute the following command after cloning the repo:
 
 ## Types
 
-### Bool
+### Boolean
 
+* There are two boolean values: `true` and `false`
+
+* `bool(value)` casts any value to its boolean value. Notably, each type has a zero or empty value which will evaluate to `false`
+
+```
+>> bool(true)
+true
+```
+
+```
+>> bool(0)
+false
+```
 ### String
+
+* Strings are written using `""` 
+
+`"This is a string"`. 
+
+* `+` if an argument on either side of a `+` side is a string, the result will be a concatenation of the string and the other argument's string value
+
+```
+>> "two " + "strings"
+two strings
+
+>> 1 + "two"
+1two
+```
+
+* `*` If an integer and a string are multiplied, the result will be the string repeated the integer number of times
+
+```
+>> "string" * 3
+stringstringstring
+```
+
+* `string(value)` casts any value to its string value
 
 ### Integer
 
+* Integers are non-decimal numbers
+* They support a few basic arithmetic operations: `+`, `-`, `*`, `/`. They follow basic order of operations. Dividing two integers will result in a float.
+
+```
+>> 1 + 2 * 3
+7
+>> 1 / 1
+1.0
+>> type(2 / 2)
+FLOAT
+```
+
+
+* `int(value)` casts any value to its integer value
+
+```
+>> int("3") == 3
+true
+```
+
 ### Float
 
-### Array 
+* Floats are decimal numbers
+* They support basic arithmetic operations: `+`, `-`, `*`, `/`. Combining a float and integer using artihmetic will result in a float type
+
+```
+>> 1.0 + 2
+3.0
+>> 1.5 * (2 / 3)
+1.0
+```
+
+* `float(value)` casts any value to its float value
+
+```
+>> float(7)
+7.0
+>> float(true)
+1.0
+```
+
+### Array
+
+* Arrays are comma-separated lists of values denoted with `[]`. For example: `[1, "array", false]`
+
+* `first(array)` returns the first element of an array
+
+```
+>> first([1,2,3])
+1
+```
+* `last(array)` returns the first element of an array
+
+```
+>> last([1,2,3])
+3
+```
+* `rest(array)` returns the array without its first element
+
+```
+>> rest([1,2,3])
+[2,3]
+```
+* `take(array,n)` returns the first n elements of an array
+
+```
+>> take([1,2,3],2)
+[1,2]
+```
+* `drop(array,n)` returns the array without its first n elements
+
+```
+>> drop([1,2,3],2)
+[3]
+```
+* `push(array,arg)` returns the array with `arg` appended to the end
+
+```
+>> push([1,2,3],"four")
+[1,2,3,"four"]
+```
+
+* `+` returns the addition of two arrays
+
+```
+>> [1,2] + [3,4]
+[1,2,3,4]
+```
 
 ### Hash
+
+* Hashes are maps from keys to values denoted with `{}`, with keys and their values separated by `:`, and pairs separated by `,`
+* Hash keys can be integers, floats, booleans or strings.
+
+```
+>> { "a" : 1, 1: [3,4,5], true: 73.2 }
+```
+
+
+* `keys` returns an array of the keys of a hash. No ordering is guaranteed
+
+```
+>> keys({ "a" : 1, 1: [3,4,5], true: 73.2 })
+[1, true, a]
+```
+* `values` returns an array of the values of a hash. No ordering is guaranteed
+
+```
+>> values({ "a" : 1, 1: [3,4,5], true: 73.2 })
+[1, [3,4,5], 73.2]
+```
+
+
+* `+` returns the addition of two hashes, preferring the value of the second hash, for any keys they share
+
+```
+>> { 1: 1, 2: 2 } + { 1: "second", 3: 3 }
+{ 1: second, 2: 2, 3: 3 }
+```
 
 ## Comparison
 
@@ -86,17 +236,36 @@ Returns an alphabetically sorted array of all available builtin functions, inclu
 
 ### type(obj)
 
-Returns the type of an object. For example:
+Returns the type of an object
 
 ```
-type(true)
+>> type(true)
 BOOLEAN
+>> type([])
+ARRAY
+```
+
+### len(obj)
+
+Returns the length of an object
+
+```
+>> len([1,2,3])
+3
+>> len("string")
+6
+>> len({ 1: 1, 2: true })
+2
 ```
 
 ### rando(int)
 
 Returns a random integer in the range [0,int)
 
+```
+>> rando(10)
+3
+```
 
 
 ## Whitespace
