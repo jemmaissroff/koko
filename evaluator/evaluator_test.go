@@ -1,9 +1,9 @@
 package evaluator
 
 import (
-	"monkey/lexer"
-	"monkey/object"
-	"monkey/parser"
+	"koko/lexer"
+	"koko/object"
+	"koko/parser"
 	"testing"
 )
 
@@ -55,7 +55,7 @@ func TestEvalStringExpression(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"\"Hello, monkey\"", "Hello, monkey"},
+		{"\"Hello, koko\"", "Hello, koko"},
 		{"\"5.1\"", "5.1"},
 	}
 
@@ -314,7 +314,7 @@ func TestErrorHandling(t *testing.T) {
 			"identifier not found: garbage",
 		},
 		{
-			`{"name": "Monkey"}[fn(x) { x }];`,
+			`{"name": "koko"}[fn(x) { x }];`,
 			"unusable as hash key: FUNCTION",
 		},
 	}
