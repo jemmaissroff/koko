@@ -1,8 +1,8 @@
 package evaluator
 
 import (
-	"monkey/ast"
-	"monkey/object"
+	"koko/ast"
+	"koko/object"
 
 	"fmt"
 	"math"
