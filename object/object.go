@@ -24,6 +24,18 @@ const (
 	TRACE_OBJ    = "TRACE"
 )
 
+var (
+	NIL = &Nil{}
+
+	TRUE  = &Boolean{Value: true}
+	FALSE = &Boolean{Value: false}
+
+	EMPTY_STRING = &String{Value: ""}
+	ZERO_INTEGER = &Integer{Value: 0}
+	ZERO_FLOAT   = &Float{Value: 0}
+	EMPTY_ARRAY  = &Array{Elements: []Object{}}
+)
+
 type TraceMetadata struct {
 	// TODO turn this into a more efficent format later (not a string)
 	// dep format = 3|2|1 = arg[3][2][1]
@@ -229,12 +241,13 @@ type PureFunction struct {
 	Parameters []*ast.Identifier
 	Body       *ast.BlockStatement
 	Env        *Environment
-	Cache      PartialCache
+	Cache      map[string]Object
 	metadata   TraceMetadata
 }
 
 func NewPureFunction(parameters []*ast.Identifier, env *Environment, body *ast.BlockStatement) *PureFunction {
-	return &PureFunction{Parameters: parameters, Body: body, Env: env, Cache: PartialCache{}}
+	cache := make(map[string]Object)
+	return &PureFunction{Parameters: parameters, Body: body, Env: env, Cache: cache}
 }
 
 func (f *PureFunction) Type() ObjectType { return FUNCTION_OBJ }
@@ -256,51 +269,16 @@ func (f *PureFunction) Inspect() string {
 	return out.String()
 }
 func (f *PureFunction) String() String { return String{Value: f.Inspect()} }
-
-func addArgToArgStrs(argStrs map[string]string, arg Object, prefix string) {
-	// note this is pretty inefficient
-	// we should almost reverse this process
-	switch arg.(type) {
-	case *Array:
-		for i, e := range arg.(*Array).Elements {
-			// (TODO) Peter string concatenation here is a performance no no
-			// remove it
-			addArgToArgStrs(argStrs, e, prefix+"|"+strconv.Itoa(i))
-		}
-		argStrs[prefix+"#"] = strconv.Itoa(len(arg.(*Array).Elements))
-		if len(arg.(*Array).Elements) == 0 {
-			// TODO (Peter make this a special empty array symbol)
-			argStrs[prefix] = "Z"
-		}
-		break
-	default:
-		// note we should probably replace this inspect stuff with a real
-		// faster hash function at some point?
-		argStrs[prefix] = arg.Inspect()
-		break
-	}
-}
-
 func (f *PureFunction) Get(args []Object) (Object, bool) {
-	argStrs := make(map[string]string)
-	for i, a := range args {
-		keyPrefix := strconv.Itoa(i)
-		addArgToArgStrs(argStrs, a, keyPrefix)
-	}
-	obj, ok := f.Cache.Get(argStrs)
+	obj, ok := f.Cache[objectsToString(args)]
 	return obj, ok
 }
+func (f *PureFunction) Falsey() Object { return NIL }
 
-func (f *PureFunction) Set(args []Object, deps map[string]bool, val Object) Object {
-	argStrs := make(map[string]string)
-	for i, a := range args {
-		keyPrefix := strconv.Itoa(i)
-		addArgToArgStrs(argStrs, a, keyPrefix)
-	}
-	f.Cache.Set(argStrs, deps, val)
+func (f *PureFunction) Set(args []Object, val Object) Object {
+	f.Cache[objectsToString(args)] = val
 	return val
 }
-
 func (f *PureFunction) GetMetadata() TraceMetadata         { return f.metadata }
 func (f *PureFunction) SetMetadata(metadata TraceMetadata) { f.metadata = metadata }
 func (f *PureFunction) Copy() Object {

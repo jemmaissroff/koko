@@ -111,7 +111,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return args[0]
 		}
 
-		return applyFunction(function, args)
+		res := applyFunction(function, args)
+		return deepCopyObjectAndTranslateDepsToResult(res, args)
 	case *ast.ArrayLiteral:
 		elements := evalExpressions(node.Elements, env)
 		if len(elements) == 1 && isError(elements[0]) {
@@ -509,17 +510,14 @@ func isError(obj object.Object) bool {
 // tracing system
 // this should probably be in buildins but cannot be b/c of circular dependencies
 func evalFunctionAndRetrieveDependencies(args ...object.Object) object.Object {
-	// TODO (Peter) clean this up
 	if len(args) < 1 {
 		return newError("wrong number of arguments. got=%d, need at least=%d",
 			len(args), 1)
 	}
-	// TODO (Peter) validate fn is really a function
-	fn, ok := args[0].(*object.PureFunction)
-	if !ok {
-		return newError("first argument is not a pure function got %+v\n instead", fn)
-	}
-	fnRes := applyPureFunction(fn, args[1:])
+
+	fn := args[0]
+
+	fnRes := applyFunction(fn, args[1:])
 	res := object.DebugTraceMetadata{}
 	res.SetDebugMetadata(fnRes.GetMetadata())
 	return &res
@@ -725,41 +723,40 @@ func applyPureFunction(fn *object.PureFunction, args []object.Object) object.Obj
 	if len(fn.Parameters) != len(args) {
 		return newError("Supplied %v args, but %v are expected", len(args), len(fn.Parameters))
 	}
-	// strip the old metadata off of the incoming params
-	traceableArgs := make([]object.Object, len(fn.Parameters))
-	for i, a := range args {
-		traceableArgs[i] = deepCopyAndAddDepsToArg(a, strconv.Itoa(i))
-	}
 
-	extendedEnv := extendPureFunctionEnv(fn, traceableArgs)
+	extendedEnv := extendPureFunctionEnv(fn, args)
 	var res object.Object
 	// TODO (Peter) should we cache errors?
-	// Also this logic could be cleaned up a little
 	if val, ok := fn.Get(args); ok {
 		res = val
 	} else {
 		// this code might be a little inconsistent w.r.t errors?
 		res = unwrapReturnValue(Eval(fn.Body, extendedEnv))
-		fnMetadata := res.GetMetadata()
-		fn.Set(args, fnMetadata.Dependencies, res)
+		fn.Set(args, res)
 	}
 	return res
 }
 
 func applyFunction(fn object.Object, args []object.Object) object.Object {
+	// strip the old metadata off of the incoming params, for tracing
+	traceableArgs := make([]object.Object, len(args))
+	for i, a := range args {
+		traceableArgs[i] = deepCopyAndAddDepsToArg(a, strconv.Itoa(i))
+	}
 	switch fn := fn.(type) {
 	case *object.Function:
 		if len(fn.Parameters) != len(args) {
 			return newError("Supplied %v args, but %v are expected", len(args), len(fn.Parameters))
 		}
-		extendedEnv := extendFunctionEnv(fn, args)
+		extendedEnv := extendFunctionEnv(fn, traceableArgs)
 		evaluated := Eval(fn.Body, extendedEnv)
 		return unwrapReturnValue(evaluated)
 	case *object.PureFunction:
-		res := applyPureFunction(fn, args)
-		return deepCopyObjectAndTranslateDepsToResult(res, args)
+		res := applyPureFunction(fn, traceableArgs)
+		return res
+		//return deepCopyObjectAndTranslateDepsToResult(res, args)
 	case *object.Builtin:
-		return fn.Fn(args...)
+		return fn.Fn(traceableArgs...)
 	default:
 		return newError("not a function %s", fn.Type())
 	}
