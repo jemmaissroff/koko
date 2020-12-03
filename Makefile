@@ -6,4 +6,6 @@ profile:
 	cd benchmark && go test -cpuprofile cpu.prof -memprofile mem.prof -bench=. -benchtime=30s
 test:
 	go test ./...
+wasm:
+	GOOS=js GOARCH=wasm go build -o main.wasm main_wasm.go 
 	
