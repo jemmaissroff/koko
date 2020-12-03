@@ -106,7 +106,9 @@ func init() {
 				switch arg := args[0].(type) {
 				case *object.String:
 					for _, val := range arg.Value {
-						elements = append(elements, &object.String{Value: string(val)})
+						e := &object.String{Value: string(val)}
+						e.SetMetadata(arg.GetMetadata())
+						elements = append(elements, e)
 					}
 				case *object.Array:
 					return arg
@@ -114,7 +116,10 @@ func init() {
 					elements = append(elements, arg)
 				}
 
-				return &object.Array{Elements: elements}
+				res := object.Array{Elements: elements}
+				res.SetMetadata(args[0].GetMetadata())
+				res.LengthMetadata = args[0].GetMetadata()
+				return &res
 			},
 		},
 		"bool": &object.Builtin{
