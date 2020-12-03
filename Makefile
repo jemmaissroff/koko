@@ -4,4 +4,6 @@ fmt:
 	go fmt ./...
 test:
 	go test ./...
+wasm:
+	GOOS=js GOARCH=wasm go build -o main.wasm main_wasm.go 
 	
