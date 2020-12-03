@@ -29,9 +29,9 @@ false
 ```
 ### String
 
-* Strings are written using `""` 
+* Strings are written using `""`
 
-`"This is a string"`. 
+`"This is a string"`.
 
 * `+` if an argument on either side of a `+` side is a string, the result will be a concatenation of the string and the other argument's string value
 
@@ -143,6 +143,17 @@ true
 [1,2,3,4]
 ```
 
+* `array(value)` casts any value to its array value. Strings will split when cast to arrays, while all other types will resolve to their value as a single element in an array
+```
+>> array(true)
+[true]
+```
+
+```
+>> array("koko")
+[k, o, k, o]
+```
+
 ### Hash
 
 * Hashes are maps from keys to values denoted with `{}`, with keys and their values separated by `:`, and pairs separated by `,`
@@ -191,7 +202,7 @@ For instance:
 
 `let i = 1`
 
-`let str = "some string"` 
+`let str = "some string"`
 
 ## If statements
 
@@ -205,7 +216,7 @@ For example:
 
 ## Functions
 
-Functions are defined using 
+Functions are defined using
 
 `fn(arguments) { code }`
 
@@ -218,7 +229,7 @@ let multiplier = fn(x) { fn(n) { x * n } }
 let double = multiplier(2)
 double(10)
 => 20
-``` 
+```
 
 ### Pure Functions
 
@@ -227,7 +238,7 @@ TODO: Peter to fill in this section!
 
 ## Builtins
 
-These are all builtin functions which are not specific to a type. Any type-specific builtin functions are documented above in the `Type` section. Like all functions, builtins are called with some number of arguments in parentheses. 
+These are all builtin functions which are not specific to a type. Any type-specific builtin functions are documented above in the `Type` section. Like all functions, builtins are called with some number of arguments in parentheses.
 
 ### builtins()
 
@@ -278,13 +289,13 @@ This is a sample `map` program which demonstrates some key features of the langu
 ```
 let map = fn(array, function) { if (type(array) != "ARRAY") {
     return "Must pass an array as first arg, not " + type(array)
-  } 
+  }
   if (type(function) != "FUNCTION") {
 	  if (type(function) != "BUILTIN") {
 		  return "Must pass a function or builtin as second arg, not " + type(function)
 	  }
   }
-  
+
   if (len(array) > 0) {
     [function(first(array))] + map(rest(array), function)
   } else {

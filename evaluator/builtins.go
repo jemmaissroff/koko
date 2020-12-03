@@ -71,6 +71,28 @@ func init() {
 				return &object.String{Value: args[0].Inspect()}
 			},
 		},
+		"array": &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if err := validateNumberOfArgs(1, args); err != object.NIL {
+					return err
+				}
+
+				elements := make([]object.Object, 0, 1)
+
+				switch arg := args[0].(type) {
+				case *object.String:
+					for _, val := range arg.Value {
+						elements = append(elements, &object.String{Value: string(val)})
+					}
+				case *object.Array:
+					return arg
+				default:
+					elements[0] = args[0]
+				}
+
+				return &object.Array{Elements: elements}
+			},
+		},
 		"bool": &object.Builtin{
 			Fn: func(args ...object.Object) object.Object {
 				if err := validateNumberOfArgs(1, args); err != object.NIL {
