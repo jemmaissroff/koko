@@ -66,6 +66,13 @@ stringstringstring
 FLOAT
 ```
 
+* There is also modulo arithmetic for integers using `%`.
+
+```
+>> 5 % 2
+1
+```
+
 
 * `int(value)` casts any value to its integer value
 
@@ -83,6 +90,13 @@ true
 >> 1.0 + 2
 3.0
 >> 1.5 * (2 / 3)
+1.0
+```
+
+* There is also modulo arithmetic for integers using `%`.
+
+```
+>> 5.5 % 2.25
 1.0
 ```
 
@@ -277,9 +291,30 @@ Returns a random integer in the range [0,int)
 3
 ```
 
+## Comments
+
+Koko will ignore anything which follows a `//` and treat it as a comment:
+
+```
+// This is a comment
+```
+
+## Semicolons
+
+Either semicolons or newlines are acceptable ways to denote two different instructions
+
+```
+>> let a = 1; let b = 2
+2
+>> let c = 3
+3
+>> a + b + c
+6
+```
+
 ## Whitespace
 
-Whitespace is not relevant in this programming language. Use as much, or as little, as you'd like. There is not (yet) any existing style guide. Although I really like Go's formatter, so might bake some auto-formatted style into the language at some future point!
+Whitespace is not relevant in Koko. Use as much, or as little, as you'd like. There is not (yet) any existing style guide. Although I really like Go's formatter, so might bake some auto-formatted style into the language at some future point!
 
 
 ## Example: Writing `Map`

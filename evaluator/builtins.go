@@ -87,7 +87,7 @@ func init() {
 				case *object.Array:
 					return arg
 				default:
-					elements[0] = args[0]
+					elements = append(elements, arg)
 				}
 
 				return &object.Array{Elements: elements}
