@@ -337,8 +337,8 @@ func init() {
 				if args[0].Type() != object.FUNCTION_OBJ {
 					return newError("first argument to `map` must be FUNCTION, got %s", args[0].Type())
 				}
-                // TODO: map should be able to operate on any collection (like a HASH),
-                // not just an ARRAY
+				// TODO: map should be able to operate on any collection (like a HASH),
+				// not just an ARRAY
 				if args[1].Type() != object.ARRAY_OBJ {
 					return newError("second argument to `map` must be ARRAY, got %s", args[1].Type())
 				}
@@ -348,7 +348,7 @@ func init() {
 
 				elements := make([]object.Object, 0, len(coll.Elements))
 				for _, v := range coll.Elements {
-                    // TODO
+					// TODO
 					// elements = append(elements, evaluator/applyFunction(f, [v])
 				}
 				return &object.Array{Elements: elements}
