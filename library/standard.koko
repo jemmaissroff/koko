@@ -1,0 +1,77 @@
+let first = fn(arr) {
+  if (type(arr) != "ARRAY") {
+    return throw("First takes an array")
+  }
+  if (len(arr) == 0) {
+    return throw("Array passed to first must have non-zero length")
+  }
+  arr[0]
+}
+
+let last = fn(arr) {
+  if (type(arr) != "ARRAY") {
+    return throw("Last takes an array")
+  }
+  if (len(arr) == 0) {
+    return throw("Array passed to last must have non-zero length")
+  }
+  arr[len(arr) - 1]
+}
+
+let rest = fn(arr) {
+  if (type(arr) != "ARRAY") {
+    return throw("Rest takes an array")
+  }
+  if (len(arr) == 0) {
+    return throw("Array passed to last must have non-zero length")
+  }
+  _rest(arr, 1)
+}
+
+let _rest = fn(arr, position) {
+  if (position < len(arr)) {
+    [arr[position]] + _rest(arr, position + 1)
+  } else { [] }
+}
+
+let take = fn(arr, count) {
+  if (count > len(arr)) {
+    return throw("Count " + count + " exceeds size of array " + arr)
+  } else {
+    if (count == 0) {
+      return []
+    } else {
+      [first(arr)] + take(rest(arr), count - 1)
+    }
+  }
+}
+
+let drop = fn(arr, count) {
+  if (count > len(arr)) {
+    return throw("Count " + count + " exceeds size of array " + arr)
+  } else {
+    if (count == 0) {
+      return arr
+    } else {
+      drop(rest(arr), count - 1)
+    }
+  }
+}
+
+let map = fn(arr, fun) {
+  if (len(arr) == 0) {
+    []
+  } else {
+    [fun(first(arr))] + map(rest(arr), fun)
+  }
+}
+
+let reverse = fn(arr) {
+  if (len(arr) == 0) { return [] };
+  reverse(rest(arr)) + [first(arr)]
+}
+
+// TODO: Add to builtins
+let throw = fn(err) {
+  "KOKO WENT NUTS: " + err
+}
