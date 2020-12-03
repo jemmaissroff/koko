@@ -237,7 +237,7 @@ func TestIfExpressionWithError(t *testing.T) {
 }
 
 func testNilObject(t *testing.T, obj object.Object) bool {
-	if obj != object.NIL {
+	if _, ok := obj.(*object.Nil); !ok {
 		t.Errorf("object is not NULL. got=%T (%+v)", obj, obj)
 		return false
 	}

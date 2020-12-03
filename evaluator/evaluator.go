@@ -535,6 +535,12 @@ func deepCopyAndAddDepsToArg(arg object.Object, prefix string) object.Object {
 func getDepsFromArray(identifier string, pos int, arr []object.Object) object.TraceMetadata {
 	// TODO (Peter) strings are not efficient at all!
 	// Oh god there's a lot of cringe in this code
+	fmt.Printf("ident: %s at pos %d\n", identifier, pos)
+	fmt.Printf("elements: ")
+	for _, e := range arr {
+		fmt.Printf("%+v,", e)
+	}
+	fmt.Printf("\n")
 	num := 0
 	needsLen := false
 	for i := pos; i < len(identifier); i++ {

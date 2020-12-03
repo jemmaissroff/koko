@@ -2,10 +2,10 @@ package evaluator
 
 import (
 	"fmt"
+	"koko/lexer"
+	"koko/object"
+	"koko/parser"
 	"math/rand"
-	"monkey/lexer"
-	"monkey/object"
-	"monkey/parser"
 	"sort"
 	"strconv"
 	"testing"
@@ -119,13 +119,34 @@ func TestDependencyTrackingInSubFunctionsWithArrayConcatenation(t *testing.T) {
 	assertObjectDepsEqual(t, res, []string{"1|1"})
 }
 
+/*
+* TESTING BUILTINS HERE
+ */
+func TestStringToArrayConversion(t *testing.T) {
+	program := "let f = pfn(s) { array(s)[2] }; deps(f, \"hello word\")"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0"})
+	program = "let f = pfn(s) { len(array(s)) }; deps(f, \"hello word\")"
+	res = testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0"})
+}
+
+func TestStringToArrayConversionForOtherType(t *testing.T) {
+	program := "let f = pfn(s) { len(array(s)) }; deps(f, 1)"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0"})
+	program = "let f = pfn(s) { len(array(s)) }; deps(f, 1)"
+	res = testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0"})
+}
+
 /**
 This section contains larger "integration tests".
 **/
 func TestMergeSortOnInts(t *testing.T) {
 	rand.Seed(1)
-	for i := 0; i < 20; i++ {
-		arrLen := rand.Intn(100)
+	for i := 0; i < 1; i++ {
+		arrLen := 2
 		arr := make([]int, arrLen)
 		for j := 0; j < arrLen; j++ {
 			arr[j] = rand.Intn(200000) - 100000
@@ -143,11 +164,12 @@ func TestMergeSortOnInts(t *testing.T) {
 			}
 		}
 		strInput += "]"
+		fmt.Printf("in: %s", strInput)
 		mergeSortProgram := fmt.Sprintf(`
-		let get_n_elements = pfn(arr, offset, number_of_elements) { if (number_of_elements == 0) { [] } else { [arr[offset]] + get_n_elements(arr, offset + 1, number_of_elements - 1) } }
-		let merge_elements = pfn(res_lower, res_upper) { if (len(res_lower) == 0) { if (len(res_upper) == 0) { [] } else { res_upper } } else { if (len(res_upper) == 0) { res_lower } else { if (first(res_upper) < first(res_lower)) { [first(res_upper)] + merge_elements(res_lower, rest(res_upper)) } else { [first(res_lower)] + merge_elements(res_upper, rest(res_lower)) } } } }
+		let get_n_elements = fn(arr, offset, number_of_elements) { if (number_of_elements == 0) { [] } else { [arr[offset]] + get_n_elements(arr, offset + 1, number_of_elements - 1) } }
+		let merge_elements = fn(res_lower, res_upper) { if (len(res_lower) == 0) { if (len(res_upper) == 0) { [] } else { res_upper } } else { if (len(res_upper) == 0) { res_lower } else { if (first(res_upper) < first(res_lower)) { [first(res_upper)] + merge_elements(res_lower, rest(res_upper)) } else { [first(res_lower)] + merge_elements(res_upper, rest(res_lower)) } } } }
 
-		let merge_sort = pfn(arr) { if (len(arr) < 2) { return arr } else { let half = int(len(arr)/2); let res_lower = get_n_elements(arr, 0, half); let res_upper = get_n_elements(arr, half, len(arr) - half); merge_elements(merge_sort(res_lower), merge_sort(res_upper)) } }
+		let merge_sort = fn(arr) { if (len(arr) < 2) { return arr } else { let half = int(len(arr)/2); let res_lower = get_n_elements(arr, 0, half); let res_upper = get_n_elements(arr, half, len(arr) - half); merge_elements(merge_sort(res_lower), merge_sort(res_upper)) } }
 		merge_sort(%s)
 		`, strInput)
 
