@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"monkey/evaluator"
-	"monkey/lexer"
-	"monkey/object"
-	"monkey/parser"
+	"koko/evaluator"
+	"koko/lexer"
+	"koko/object"
+	"koko/parser"
 )
 
 const PROMPT = ">> "
@@ -42,7 +42,7 @@ func Start(in io.Reader, out io.Writer) {
 }
 
 func printParserErrors(out io.Writer, errors []string) {
-	io.WriteString(out, "Woooooops, monkey business. Parser errors:\n")
+	io.WriteString(out, "Woooooops, koko business. Parser errors:\n")
 	for _, msg := range errors {
 		io.WriteString(out, "\t"+msg+"\n")
 	}

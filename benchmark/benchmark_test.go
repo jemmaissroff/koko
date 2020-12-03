@@ -1,11 +1,11 @@
 package benchmark
 
 import (
-	"monkey/ast"
-	"monkey/evaluator"
-	"monkey/lexer"
-	"monkey/object"
-	"monkey/parser"
+	"koko/ast"
+	"koko/evaluator"
+	"koko/lexer"
+	"koko/object"
+	"koko/parser"
 	"testing"
 )
 

@@ -1,23 +1,11 @@
 package evaluator
 
 import (
-	"monkey/ast"
-	"monkey/object"
-	"strconv"
+	"koko/ast"
+	"koko/object"
 
 	"fmt"
 	"math"
-)
-
-var (
-	NIL = &object.Nil{}
-
-	TRUE  = &object.Boolean{Value: true}
-	FALSE = &object.Boolean{Value: false}
-
-	EMPTY_STRING = &object.String{Value: ""}
-	ZERO_INTEGER = &object.Integer{Value: 0}
-	ZERO_FLOAT   = &object.Float{Value: 0}
 )
 
 func Eval(node ast.Node, env *object.Environment) object.Object {
@@ -43,27 +31,11 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return res
 
 	case *ast.IntegerLiteral:
-		switch node.Value {
-		case 0:
-			return ZERO_INTEGER
-		default:
-			return &object.Integer{Value: node.Value}
-		}
+		return &object.Integer{Value: node.Value}
 	case *ast.FloatLiteral:
-		switch node.Value {
-		case 0:
-			return ZERO_FLOAT
-		default:
-			return &object.Float{Value: node.Value}
-		}
+		return &object.Float{Value: node.Value}
 	case *ast.StringLiteral:
-		switch node.Value {
-		case "":
-			return EMPTY_STRING
-		default:
-			return &object.String{Value: node.Value}
-
-		}
+		return &object.String{Value: node.Value}
 	case *ast.Boolean:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.PrefixExpression:
@@ -96,7 +68,6 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		params := node.Parameters
 		body := node.Body
 		return &object.Function{Parameters: params, Env: env, Body: body}
-		// JEM: You left off here. Need to implement a pure function literal
 	case *ast.PureFunctionLiteral:
 		params := node.Parameters
 		body := node.Body
@@ -129,6 +100,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return index
 		}
 		return evalIndexExpression(left, index)
+	case *ast.HashLiteral:
+		return evalHashLiteral(node, env)
 	}
 	return nil
 }
@@ -178,15 +151,21 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 }
 
 func evalInfixExpression(operator string, left object.Object, right object.Object) object.Object {
+	if operator == "==" {
+		return nativeBoolToBooleanObject(left.Equal(right))
+	} else if operator == "!=" {
+		return nativeBoolToBooleanObject(!left.Equal(right))
+	}
 	switch {
 	case left.Type() == object.ARRAY_OBJ:
 		switch {
 		case right.Type() == object.ARRAY_OBJ:
 			return evalArrayInfixExpression(operator, left, right)
-		case operator == "==":
-			return FALSE
-		case operator == "!=":
-			return TRUE
+		}
+	case left.Type() == object.HASH_OBJ:
+		switch {
+		case right.Type() == object.HASH_OBJ:
+			return evalHashInfixExpression(operator, left, right)
 		}
 	case left.Type() == object.STRING_OBJ:
 		switch {
@@ -196,10 +175,6 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 			return multiplyStrings(left, right)
 		case operator == "+":
 			return addStrings(left, right)
-		case operator == "==":
-			return FALSE
-		case operator == "!=":
-			return TRUE
 		}
 	case right.Type() == object.STRING_OBJ:
 		switch {
@@ -207,10 +182,6 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 			return multiplyStrings(right, left)
 		case operator == "+":
 			return addStrings(left, right)
-		case operator == "==":
-			return FALSE
-		case operator == "!=":
-			return TRUE
 		}
 	case left.Type() == object.INTEGER_OBJ:
 		switch {
@@ -227,10 +198,6 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 		case right.Type() == object.FLOAT_OBJ:
 			return evalFloatInfixExpression(operator, left, right)
 		}
-	case operator == "==":
-		return nativeBoolToBooleanObject(left == right)
-	case operator == "!=":
-		return nativeBoolToBooleanObject(left != right)
 	default:
 		return newError("unknown operator: %s %s %s",
 			left.Type(), operator, right.Type())
@@ -265,10 +232,6 @@ func evalIntegerInfixExpression(operator string, left object.Object, right objec
 		res = nativeBoolToBooleanObject(lVal < rVal)
 	case ">":
 		res = nativeBoolToBooleanObject(lVal > rVal)
-	case "==":
-		res = nativeBoolToBooleanObject(lVal == rVal)
-	case "!=":
-		res = nativeBoolToBooleanObject(lVal != rVal)
 	case "%":
 		res = &object.Integer{Value: lVal % rVal}
 	default:
@@ -304,10 +267,6 @@ func evalFloatInfixExpression(operator string, left object.Object, right object.
 		res = nativeBoolToBooleanObject(lVal < rVal)
 	case ">":
 		res = nativeBoolToBooleanObject(lVal > rVal)
-	case "==":
-		res = nativeBoolToBooleanObject(lVal == rVal)
-	case "!=":
-		res = nativeBoolToBooleanObject(lVal != rVal)
 	case "%":
 		res = &object.Float{Value: math.Mod(lVal, rVal)}
 	default:
@@ -324,23 +283,11 @@ func intToFloat(integer object.Object) *object.Float {
 }
 
 func evalStringInfixExpression(operator string, left object.Object, right object.Object) object.Object {
-	lVal := left.(*object.String).Value
-	rVal := right.(*object.String).Value
-
-	var res object.Object
-	switch operator {
-	case "+":
+	if operator == "+" {
 		// dependency assignment handled inside this function
 		return addStrings(left, right)
-	case "==":
-		res = nativeBoolToBooleanObject(lVal == rVal)
-	case "!=":
-		res = nativeBoolToBooleanObject(lVal != rVal)
-	default:
-		res = NIL.Copy()
 	}
-	res.SetMetadata(object.MergeDependencies(left.GetMetadata(), right.GetMetadata()))
-	return res
+	return object.NIL
 }
 
 func multiplyStrings(str object.Object, integer object.Object) *object.String {
@@ -377,12 +324,8 @@ func evalArrayInfixExpression(operator string, left object.Object, right object.
 	case "+":
 		res := addElements(left.(*object.Array), right.(*object.Array))
 		return res
-	case "==":
-		return nativeBoolToBooleanObject(elComparison(lEls, rEls))
-	case "!=":
-		return nativeBoolToBooleanObject(!elComparison(lEls, rEls))
 	default:
-		return NIL
+		return object.NIL
 	}
 }
 
@@ -410,22 +353,51 @@ func addElements(left *object.Array, right *object.Array) *object.Array {
 	return &res
 }
 
-func elComparison(left []object.Object, right []object.Object) bool {
-	if len(left) != len(right) {
-		return false
+func evalHashInfixExpression(operator string, left object.Object, right object.Object) object.Object {
+	lPairs := left.(*object.Hash).Pairs
+	rPairs := right.(*object.Hash).Pairs
+
+	switch operator {
+	case "+":
+		return addPairs(lPairs, rPairs)
+	case "-":
+		return subtractPairs(lPairs, rPairs)
+	default:
+		return object.NIL
 	}
-	for i, l := range left {
-		// JEM: Inspect() isn't actually going to work here, need to fix
-		if l.Inspect() != right[i].Inspect() {
-			return false
+}
+
+func addPairs(left map[object.HashKey]object.HashPair, right map[object.HashKey]object.HashPair) object.Object {
+	pairs := make(map[object.HashKey]object.HashPair)
+
+	for k, v := range left {
+		pairs[k] = v
+	}
+	for k, v := range right {
+		pairs[k] = v
+	}
+
+	return &object.Hash{Pairs: pairs}
+}
+
+func subtractPairs(left map[object.HashKey]object.HashPair, right map[object.HashKey]object.HashPair) object.Object {
+	pairs := make(map[object.HashKey]object.HashPair)
+
+	for k, v := range left {
+		pairs[k] = v
+	}
+	for k, v := range right {
+		if pairs[k].Value.Equal(v.Value) {
+			delete(pairs, k)
 		}
 	}
-	return true
+
+	return &object.Hash{Pairs: pairs}
 }
 
 // JEM: This is pretty neat
 func evalBangOperatorExpression(right object.Object) object.Object {
-	res := nativeBoolToBooleanObject(!isTruthy(right))
+	res := nativeBoolToBooleanObject(!object.Bool(right))
 	res.SetMetadata(right.GetMetadata())
 	return res
 }
@@ -442,9 +414,9 @@ func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 
 func nativeBoolToBooleanObject(input bool) *object.Boolean {
 	if input {
-		return TRUE
+		return object.TRUE
 	}
-	return FALSE
+	return object.FALSE
 }
 
 func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Object {
@@ -453,42 +425,16 @@ func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Obje
 	if isError(condition) {
 		return condition
 	}
-
-	if isTruthy(condition) {
-		//debugID := rand.Intn(1000000)
-		//fmt.Printf("pre-condition metadata (w/ id: %d) %+v\n", debugID, )
+	if object.Bool(condition) {
 		res := Eval(ie.Consequence, env)
-		//fmt.Printf("condition metadata (w/ id: %d) %+v\n", debugID, condition.GetMetadata())
 		return deepCopyObjectAndMergeDeps(res, conditionMetadataCopy)
 	} else if ie.Alternative != nil {
-		//debugID := rand.Intn(1000000)
-		//fmt.Printf("pre-else metadata (w/ id: %d) %+v\n", debugID, condition.GetMetadata())
 		res := Eval(ie.Alternative, env)
-		//fmt.Printf("else metadata (w/ id: %d) %+v\n", debugID, condition.GetMetadata())
 		return deepCopyObjectAndMergeDeps(res, conditionMetadataCopy)
 	} else {
 		res := NIL.Copy()
 		res.SetMetadata(conditionMetadataCopy)
 		return res
-	}
-}
-
-func isTruthy(obj object.Object) bool {
-	switch obj {
-	case NIL:
-		return false
-	case FALSE:
-		return false
-	case TRUE:
-		return true
-	case ZERO_FLOAT:
-		return false
-	case ZERO_INTEGER:
-		return false
-	case EMPTY_STRING:
-		return false
-	default:
-		return true
 	}
 }
 
@@ -555,10 +501,15 @@ func evalExpressions(
 }
 
 func evalIndexExpression(left, index object.Object) object.Object {
-	if left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ {
+	switch {
+	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
 		res := evalArrayIndexExpression(left, index)
 		res.SetMetadata(object.MergeDependencies(res.GetMetadata(), index.GetMetadata()))
 		return res
+	case left.Type() == object.HASH_OBJ:
+		return evalHashIndexExpression(left, index)
+	default:
+		return newError("index operator not supported: %s", left.Type())
 	}
 	return newError("index operator not supported: %s", left.Type())
 }
@@ -570,7 +521,7 @@ func evalArrayIndexExpression(array, index object.Object) object.Object {
 
 	// Out of bounds
 	if idx < 0 || idx > max {
-		return NIL
+		return object.NIL
 	}
 
 	return arrayObject.Elements[idx]
@@ -735,6 +686,17 @@ func applyPureFunction(fn *object.PureFunction, args []object.Object) object.Obj
 		fn.Set(args, res)
 	}
 	return res
+func evalHashIndexExpression(hash, index object.Object) object.Object {
+	hashObject := hash.(*object.Hash)
+	key, ok := index.(object.Hashable)
+	if !ok {
+		return newError("unusable as hash key: %s", index.Type())
+	}
+	pair, ok := hashObject.Pairs[key.HashKey()]
+	if !ok {
+		return object.NIL
+	}
+	return pair.Value
 }
 
 func applyFunction(fn object.Object, args []object.Object) object.Object {
@@ -793,4 +755,30 @@ func unwrapReturnValue(obj object.Object) object.Object {
 	}
 
 	return obj
+}
+
+func evalHashLiteral(
+	node *ast.HashLiteral,
+	env *object.Environment,
+) object.Object {
+	pairs := make(map[object.HashKey]object.HashPair)
+	for keyNode, valueNode := range node.Pairs {
+		key := Eval(keyNode, env)
+
+		if isError(key) {
+			return key
+		}
+
+		hashKey, ok := key.(object.Hashable)
+		if !ok {
+			return newError("unusable as hash key: %s", key.Type())
+		}
+		value := Eval(valueNode, env)
+		if isError(value) {
+			return value
+		}
+		hashed := hashKey.HashKey()
+		pairs[hashed] = object.HashPair{Key: key, Value: value}
+	}
+	return &object.Hash{Pairs: pairs}
 }
