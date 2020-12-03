@@ -33,6 +33,27 @@ func init() {
 				return &object.Array{Elements: builtinKeys}
 			},
 		},
+		"deps": &object.Builtin{
+			// this is an internal function which allows us to debug dependency tracing
+			// TODO (Peter) possibly add an interface which pretty prints deps for the user
+			// directly returns an object with untranslated dependency information
+			// this object should actually never be used in the program because it can poison the dependency
+			// tracing system
+			// this should probably be in buildins but cannot be b/c of circular dependencies
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 {
+					return newError("wrong number of arguments. got=%d, need at least=%d",
+						len(args), 1)
+				}
+
+				fn := args[0]
+
+				fnRes := applyFunction(fn, args[1:])
+				res := object.DebugTraceMetadata{}
+				res.SetDebugMetadata(fnRes.GetMetadata())
+				return &res
+			},
+		},
 		"len": &object.Builtin{
 			Fn: func(args ...object.Object) object.Object {
 				if err := validateNumberOfArgs(1, args); err != object.NIL {
