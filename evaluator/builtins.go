@@ -328,6 +328,32 @@ func init() {
 				return &object.Integer{Value: int64(rand.Intn(int(arg.Value)))}
 			},
 		},
+		"map": &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if err := validateNumberOfArgs(2, args); err != object.NIL {
+					return err
+				}
+
+				if args[0].Type() != object.FUNCTION_OBJ {
+					return newError("first argument to `map` must be FUNCTION, got %s", args[0].Type())
+				}
+                // TODO: map should be able to operate on any collection (like a HASH),
+                // not just an ARRAY
+				if args[1].Type() != object.ARRAY_OBJ {
+					return newError("second argument to `map` must be ARRAY, got %s", args[1].Type())
+				}
+
+				f := args[0].(*object.Function)
+				coll := args[1].(*object.Array)
+
+				elements := make([]object.Object, 0, len(coll.Elements))
+				for _, v := range coll.Elements {
+                    // TODO
+					// elements = append(elements, evaluator/applyFunction(f, [v])
+				}
+				return &object.Array{Elements: elements}
+			},
+		},
 	}
 }
 
