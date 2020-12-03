@@ -79,6 +79,16 @@ func testStringObject(t *testing.T, obj object.Object, expected string) bool {
 	return true
 }
 
+func testStringUnsupportedOpError(t *testing.T) {
+	forbiddenExpressions := []string{"\"hi\" * \"hi\"", "\"hi\" / \"hi\"", "\"hi\" > \"hi\"", "\"hi\" < \"hi\"", "\"hi\" - \"hi\""}
+	for _, e := range forbiddenExpressions {
+		evaluated := testEval(e)
+		if !isError(evaluated) {
+			t.Errorf("Expected Error For Expression %s got %s instead", e, evaluated.Inspect())
+		}
+	}
+}
+
 func TestEvalIntegerExpression(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -148,8 +158,6 @@ func TestEvalBooleanExpression(t *testing.T) {
 		{"(1 > 2) == true", false},
 		{"(1 > 2) == false", true},
 		{"(1 > 2) == (1 < 2)", false},
-		{"(\"b\" > \"a\") == (1 < 2)", false},
-		{"(\"a\" == \"a\") == true", true},
 	}
 	for _, tt := range tests {
 		evaluated := testEval(tt.input)
@@ -493,6 +501,16 @@ func TestArrayIndexExpressions(t *testing.T) {
 	}
 }
 
+func TestArrayUnsupportedOpError(t *testing.T) {
+	forbiddenExpressions := []string{"[1] * [2]", "[1] - [2]", "[1] / [2]", "[1] > [2]", "[1] < [2]"}
+	for _, e := range forbiddenExpressions {
+		evaluated := testEval(e)
+		if !isError(evaluated) {
+			t.Errorf("Expected Error For Expression %s got %s instead", e, evaluated.Inspect())
+		}
+	}
+}
+
 func TestHashLiterals(t *testing.T) {
 	input := `let two = "two";
                   {
@@ -522,6 +540,16 @@ func TestHashLiterals(t *testing.T) {
 			t.Errorf("no pair for given key in Pairs")
 		}
 		testIntegerObject(t, pair.Value, expectedValue)
+	}
+}
+
+func TestHashUnsupportedOpError(t *testing.T) {
+	forbiddenExpressions := []string{"{1:1} * {1:1}", "{1:1} / {1:1}", "{1:1} > {1:1}", "{1:1} < {1:1}"}
+	for _, e := range forbiddenExpressions {
+		evaluated := testEval(e)
+		if !isError(evaluated) {
+			t.Errorf("Expected Error For Expression %s got %s instead", e, evaluated.Inspect())
+		}
 	}
 }
 
