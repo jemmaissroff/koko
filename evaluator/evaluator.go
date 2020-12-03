@@ -3,6 +3,7 @@ package evaluator
 import (
 	"koko/ast"
 	"koko/object"
+	"strconv"
 
 	"fmt"
 	"math"
@@ -317,9 +318,6 @@ func addStrings(left object.Object, right object.Object) *object.String {
 }
 
 func evalArrayInfixExpression(operator string, left object.Object, right object.Object) object.Object {
-	lEls := left.(*object.Array).Elements
-	rEls := right.(*object.Array).Elements
-
 	switch operator {
 	case "+":
 		res := addElements(left.(*object.Array), right.(*object.Array))
@@ -432,7 +430,7 @@ func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Obje
 		res := Eval(ie.Alternative, env)
 		return deepCopyObjectAndMergeDeps(res, conditionMetadataCopy)
 	} else {
-		res := NIL.Copy()
+		res := object.NIL.Copy()
 		res.SetMetadata(conditionMetadataCopy)
 		return res
 	}
@@ -686,6 +684,8 @@ func applyPureFunction(fn *object.PureFunction, args []object.Object) object.Obj
 		fn.Set(args, res)
 	}
 	return res
+}
+
 func evalHashIndexExpression(hash, index object.Object) object.Object {
 	hashObject := hash.(*object.Hash)
 	key, ok := index.(object.Hashable)

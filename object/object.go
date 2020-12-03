@@ -411,13 +411,20 @@ func (d *DebugTraceMetadata) Copy() Object                            { return &
 func (d *DebugTraceMetadata) GetDebugMetadata() TraceMetadata         { return d.metadata }
 func (d *DebugTraceMetadata) SetDebugMetadata(metadata TraceMetadata) { d.metadata = metadata }
 
+func (d *DebugTraceMetadata) Equal(o Object) bool {
+	return false
+}
+
+func (d *DebugTraceMetadata) Falsey() Object { return &DebugTraceMetadata{} }
+
 type HashPair struct {
 	Key   Object
 	Value Object
 }
 
 type Hash struct {
-	Pairs map[HashKey]HashPair
+	Pairs    map[HashKey]HashPair
+	metadata TraceMetadata
 }
 
 func (h *Hash) Type() ObjectType { return HASH_OBJ }
@@ -449,6 +456,11 @@ func (h *Hash) Equal(o Object) bool {
 	return true
 }
 func (h *Hash) Falsey() Object { return EMPTY_HASH }
+
+func (h *Hash) GetMetadata() TraceMetadata         { return h.metadata }
+func (h *Hash) SetMetadata(metadata TraceMetadata) { h.metadata = metadata }
+
+func (h *Hash) Copy() Object { return &Hash{Pairs: h.Pairs, metadata: h.metadata} }
 
 type HashKey struct {
 	Type  ObjectType
