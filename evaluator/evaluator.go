@@ -296,7 +296,7 @@ func evalStringInfixExpression(operator string, left object.Object, right object
 		// dependency assignment handled inside this function
 		return addStrings(left, right)
 	}
-	return object.NIL
+	return newError("Unsupported Operator %s for strings", operator)
 }
 
 func multiplyStrings(str object.Object, integer object.Object) *object.String {
@@ -331,7 +331,7 @@ func evalArrayInfixExpression(operator string, left object.Object, right object.
 		res := addElements(left.(*object.Array), right.(*object.Array))
 		return res
 	default:
-		return object.NIL.Copy()
+		return newError("Unsupported Operator %s for arrays", operator)
 	}
 }
 
@@ -367,7 +367,7 @@ func evalHashInfixExpression(operator string, left object.Object, right object.O
 	case "-":
 		return subtractPairs(lPairs, rPairs)
 	default:
-		return object.NIL
+		return newError("Unsupported Operator %s for hashes", operator)
 	}
 }
 

@@ -143,12 +143,6 @@ true
 >> drop([1,2,3],2)
 [3]
 ```
-* `push(array,arg)` returns the array with `arg` appended to the end
-
-```
->> push([1,2,3],"four")
-[1,2,3,"four"]
-```
 
 * `+` returns the addition of two arrays
 
