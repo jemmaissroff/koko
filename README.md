@@ -1,4 +1,4 @@
-This is a programming language implemented in Go loosely following Thornsten Ball's *[Writing an Interpreter in Go][interpreter-book]*. Notable divergences are:
+This is a programming language implemented in Go loosely following Thorsten Ball's *[Writing an Interpreter in Go][interpreter-book]*. Notable divergences are:
 
 * Float type
 * Various builtin functions
