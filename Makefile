@@ -3,7 +3,7 @@ bench:
 fmt:
 	go fmt ./...
 profile:
-	cd benchmark && go test -cpuprofile cpu.prof -memprofile mem.prof -bench=. -benchtime=30s
+	cd benchmark && go test -cpuprofile cpu.prof -memprofile mem.prof -bench=. -benchtime=30s && go tool pprof -svg cpu.prof
 test:
 	go test -count=1 ./...
 wasm:

@@ -60,34 +60,34 @@ func assertObjectDepsEqual(t *testing.T, res object.Object, expectedDeps []strin
 }
 
 func TestDependencyTrackingInBasicFunctionWithIntegers(t *testing.T) {
-	program := "let f = pfn(a, b) { b }; deps(f, 1, 2)"
+	program := "let f = fn(a, b) { b }; deps(f, 1, 2)"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"1"})
 }
 
 func TestDependencyTrackingInBasicFunctionWithIntegerAddition(t *testing.T) {
-	program := "let f = pfn(a, b, c) { a + c }; deps(f, 1, 2, 3)"
+	program := "let f = fn(a, b, c) { a + c }; deps(f, 1, 2, 3)"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0", "2"})
 }
 
 func TestDependencyTrackingInBasicFunctionWithIntegerMultiplication(t *testing.T) {
-	program := "let f = pfn(a, b, c) { a * b * c }; deps(f, 1, 2, 0)"
+	program := "let f = fn(a, b, c) { a * b * c }; deps(f, 1, 2, 0)"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"2"})
 }
 
 func TestDependencyTrackingInBasicFunctionWithConditional(t *testing.T) {
-	program := "let f = pfn(a, b, c) { if (a > 0) { b } else { c } }; deps(f, 1, 2, 0)"
+	program := "let f = fn(a, b, c) { if (a > 0) { b } else { c } }; deps(f, 1, 2, 0)"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0", "1"})
-	program = "let f = pfn(a, b, c) { if (a > 0) { b } else { c } }; deps(f, -1, 2, 0)"
+	program = "let f = fn(a, b, c) { if (a > 0) { b } else { c } }; deps(f, -1, 2, 0)"
 	res = testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0", "2"})
 }
 
 func TestDependencyTrackingInSubFunctions(t *testing.T) {
-	program := "let g = pfn(a, b) { b }; let f = pfn(a, b, c) { g(c, a) }; deps(f, 1, 2, 3)"
+	program := "let g = fn(a, b) { b }; let f = fn(a, b, c) { g(c, a) }; deps(f, 1, 2, 3)"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0"})
 }
@@ -97,34 +97,43 @@ func TestDependencyTrackingInSubFunctions(t *testing.T) {
  */
 
 func TestDependencyTrackingInBasicFunctionWithArrays(t *testing.T) {
-	program := "let f = pfn(a) { a[2] + a[3] }; deps(f, [1,2,3,4,5])"
+	program := "let f = fn(a) { a[2] + a[3] }; deps(f, [1,2,3,4,5])"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0|2", "0|3"})
 }
 
 func TestDependencyTrackingInFunctionWithArraysWhichReturnAnArray(t *testing.T) {
-	program := "let f = pfn(a) { [a[0],a[1],a[2],a[3]] }; deps(f, [1,2,3,4,5])"
+	program := "let f = fn(a) { [a[0],a[1],a[2],a[3]] }; deps(f, [1,2,3,4,5])"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0|0", "0|1", "0|2", "0|3"})
 }
 
 func TestDependencyTrackingInSubFunctionsWithArrays(t *testing.T) {
-	program := "let f = pfn(a) { [a[0],a[1],a[2],a[3]] }; let g = pfn(a) { f(a)[0] + f(a)[2] }; deps(g, [1,2,3,4,5])"
+	program := "let f = fn(a) { [a[0],a[1],a[2],a[3]] }; let g = fn(a) { f(a)[0] + f(a)[2] }; deps(g, [1,2,3,4,5])"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0|0", "0|2"})
 }
 
 func TestDependencyTrackingInSubFunctionsWithArrayConcatenation(t *testing.T) {
-	program := "let f = pfn(a, b) { (b + a)[2] }; deps(f, [1,2], [3, 4])"
+	program := "let f = fn(a, b) { (b + a)[2] }; deps(f, [1,2], [3, 4])"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0|0", "1#"})
-	program = "let f = pfn(a, b) { (b + a)[1] }; deps(f, [1,2], [3, 4])"
+	program = "let f = fn(a, b) { (b + a)[1] }; deps(f, [1,2], [3, 4])"
 	res = testEval(program)
 	assertObjectDepsEqual(t, res, []string{"1|1"})
 }
 
 func TestOffsetDependenciesInSubArrays(t *testing.T) {
-	program := "let f = pfn(a, b) { (a + b)[3][2][1] }; deps(f, [1, 2, 3], [[4, 5, [6, 7]]])"
+	program := "let f = fn(a, b) { (a + b)[3][2][1] }; deps(f, [1, 2, 3], [[4, 5, [6, 7]]])"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"1|0|2|1", "0#"})
+}
+
+func TestOffsetDependenciesInSubArraysThroughFunctions(t *testing.T) {
+	program := `
+	let f = fn(x, y, a, b) { a + b };
+	let g = fn(a, b) { f(0, 0, a, b)[3][2][1] }
+	deps(g, [1, 2, 3], [[4, 5, [6, 7]]])`
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"1|0|2|1", "0#"})
 }
@@ -133,19 +142,19 @@ func TestOffsetDependenciesInSubArrays(t *testing.T) {
 * TESTING BUILTINS HERE
  */
 func TestStringToArrayConversion(t *testing.T) {
-	program := "let f = pfn(s) { array(s)[2] }; deps(f, \"hello word\")"
+	program := "let f = fn(s) { array(s)[2] }; deps(f, \"hello word\")"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0"})
-	program = "let f = pfn(s) { len(array(s)) }; deps(f, \"hello word\")"
+	program = "let f = fn(s) { len(array(s)) }; deps(f, \"hello word\")"
 	res = testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0"})
 }
 
 func TestStringToArrayConversionForOtherType(t *testing.T) {
-	program := "let f = pfn(s) { len(array(s)) }; deps(f, 1)"
+	program := "let f = fn(s) { len(array(s)) }; deps(f, 1)"
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0"})
-	program = "let f = pfn(s) { len(array(s)) }; deps(f, 1)"
+	program = "let f = fn(s) { len(array(s)) }; deps(f, 1)"
 	res = testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0"})
 }

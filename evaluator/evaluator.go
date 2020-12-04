@@ -632,7 +632,16 @@ func deepCopyObjectAndTranslateDepsToResult(res object.Object, args []object.Obj
 				translatedLenDeps = object.MergeDependencies(translatedLenDeps, transLenDep)
 			}
 		}
+		// offset dependency translation
+		translatedOffDeps := object.TraceMetadata{}
+		for offDep, doesDepend := range res.(*object.Array).OffsetMetadata.Dependencies {
+			if doesDepend {
+				transOffDep := getDepsFromArray(offDep, 0, args)
+				translatedOffDeps = object.MergeDependencies(translatedOffDeps, transOffDep)
+			}
+		}
 		copyRes.LengthMetadata = translatedLenDeps
+		copyRes.OffsetMetadata = translatedOffDeps
 		return &copyRes
 	default:
 		// note we should probably replace this inspect stuff with a real
