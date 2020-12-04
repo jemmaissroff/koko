@@ -92,6 +92,10 @@ func TestDependencyTrackingInSubFunctions(t *testing.T) {
 	assertObjectDepsEqual(t, res, []string{"0"})
 }
 
+/*
+* ARRAYS
+ */
+
 func TestDependencyTrackingInBasicFunctionWithArrays(t *testing.T) {
 	program := "let f = pfn(a) { a[2] + a[3] }; deps(f, [1,2,3,4,5])"
 	res := testEval(program)
@@ -117,6 +121,12 @@ func TestDependencyTrackingInSubFunctionsWithArrayConcatenation(t *testing.T) {
 	program = "let f = pfn(a, b) { (b + a)[1] }; deps(f, [1,2], [3, 4])"
 	res = testEval(program)
 	assertObjectDepsEqual(t, res, []string{"1|1"})
+}
+
+func TestOffsetDependenciesInSubArrays(t *testing.T) {
+	program := "let f = pfn(a, b) { (a + b)[3][2][1] }; deps(f, [1, 2, 3], [[4, 5, [6, 7]]])"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"1|0|2|1", "0#"})
 }
 
 /*
@@ -145,8 +155,8 @@ This section contains larger "integration tests".
 **/
 func TestMergeSortOnInts(t *testing.T) {
 	rand.Seed(1)
-	for i := 0; i < 50; i++ {
-		arrLen := 50
+	for i := 0; i < 20; i++ {
+		arrLen := 20
 		arr := make([]int, arrLen)
 		for j := 0; j < arrLen; j++ {
 			arr[j] = rand.Intn(200000) - 100000

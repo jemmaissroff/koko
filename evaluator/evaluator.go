@@ -84,9 +84,9 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 
 		res := applyFunction(function, args)
-		fmt.Printf("in m: %+v\n", res.GetMetadata())
+		//fmt.Printf("in m: %+v\n", res.GetMetadata())
 		out := deepCopyObjectAndTranslateDepsToResult(res, args)
-		fmt.Printf("out m: %+v\n", out.GetMetadata())
+		//fmt.Printf("out m: %+v\n", out.GetMetadata())
 		return out
 	case *ast.ArrayLiteral:
 		elements := evalExpressions(node.Elements, env)
@@ -338,13 +338,11 @@ func evalArrayInfixExpression(operator string, left object.Object, right object.
 func addElements(left *object.Array, right *object.Array) *object.Array {
 	elements := make([]object.Object, 0, len(left.Elements)+len(right.Elements))
 	for _, el := range left.Elements {
-		// we don't really need this but do it for consistency
-		// TODO (Peter should be deep copy?)
-		elCopy := el.Copy()
+		// TODO (Peter) is this a big problem?
+		elCopy := el
 		elements = append(elements, elCopy)
 	}
 	for _, el := range right.Elements {
-		// TODO (Peter should be deep copy?)
 		elCopy := el.Copy()
 		// objects on the right depend on the left array size for their index
 		// if the size of the left array shifts, the objects will change index

@@ -79,7 +79,6 @@ func init() {
 					value = int64(len(args[0].(*object.Array).Elements))
 					res := object.Integer{Value: value}
 					res.SetMetadata(args[0].(*object.Array).LengthMetadata)
-					fmt.Printf("len metadata: %+v\n", res.GetMetadata().Dependencies)
 					return &res
 				case *object.Hash:
 					value = int64(len(args[0].(*object.Hash).Pairs))
