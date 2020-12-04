@@ -84,9 +84,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 
 		res := applyFunction(function, args)
-		//fmt.Printf("in m: %+v\n", res.GetMetadata())
 		out := deepCopyObjectAndTranslateDepsToResult(res, args)
-		//fmt.Printf("out m: %+v\n", out.GetMetadata())
 		return out
 	case *ast.ArrayLiteral:
 		elements := evalExpressions(node.Elements, env)
@@ -328,8 +326,7 @@ func addStrings(left object.Object, right object.Object) *object.String {
 func evalArrayInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	switch operator {
 	case "+":
-		res := addElements(left.(*object.Array), right.(*object.Array))
-		return res
+		return addElements(left.(*object.Array), right.(*object.Array))
 	default:
 		return newError("Unsupported Operator %s for arrays", operator)
 	}
@@ -348,12 +345,16 @@ func addElements(left *object.Array, right *object.Array) *object.Array {
 		// if the size of the left array shifts, the objects will change index
 		// they do not depend on the size of the right array
 		elCopy.SetMetadata(object.MergeDependencies(elCopy.GetMetadata(), left.LengthMetadata))
+		if elArr, ok := elCopy.(*object.Array); ok {
+			elArr.OffsetMetadata = object.MergeDependencies(elArr.OffsetMetadata, left.LengthMetadata)
+		}
 		elements = append(elements, elCopy)
 	}
 	res := object.Array{Elements: elements}
 	// TODO (Peter) really fix runtime here
 	res.SetMetadata(object.MergeDependencies(left.GetMetadata(), right.GetMetadata()))
 	res.LengthMetadata = object.MergeDependencies(left.LengthMetadata, right.LengthMetadata)
+	res.OffsetMetadata = object.MergeDependencies(left.OffsetMetadata, right.OffsetMetadata)
 	return &res
 }
 
@@ -483,8 +484,14 @@ func evalExpressions(
 func evalIndexExpression(left, index object.Object) object.Object {
 	switch {
 	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
-		res := evalArrayIndexExpression(left, index)
+		// this is a shallow copy basically to grab the wrapper
+		res := evalArrayIndexExpression(left, index).Copy()
 		res.SetMetadata(object.MergeDependencies(res.GetMetadata(), index.GetMetadata()))
+		res.SetMetadata(object.MergeDependencies(res.GetMetadata(), left.(*object.Array).OffsetMetadata))
+		if arrRes, ok := res.(*object.Array); ok {
+			arrRes.LengthMetadata = object.MergeDependencies(arrRes.LengthMetadata, left.(*object.Array).LengthMetadata)
+			arrRes.OffsetMetadata = object.MergeDependencies(arrRes.OffsetMetadata, left.(*object.Array).OffsetMetadata)
+		}
 		return res
 	case left.Type() == object.HASH_OBJ:
 		return evalHashIndexExpression(left, index)
@@ -501,7 +508,7 @@ func evalArrayIndexExpression(array, index object.Object) object.Object {
 
 	// Out of bounds
 	if idx < 0 || idx > max {
-		return object.NIL
+		return object.NIL.Copy()
 	}
 
 	return arrayObject.Elements[idx]
@@ -612,9 +619,7 @@ func deepCopyObjectAndTranslateDepsToResult(res object.Object, args []object.Obj
 		translatedMetadataDeps := object.TraceMetadata{}
 		for metadataDep, doesDepend := range res.GetMetadata().Dependencies {
 			if doesDepend {
-				//fmt.Printf("searching for array meta: %s\n", metadataDep)
 				transMetadataDep := getDepsFromArray(metadataDep, 0, args)
-				//fmt.Printf("found: %+v\n", transMetadataDep)
 				translatedMetadataDeps = object.MergeDependencies(translatedMetadataDeps, transMetadataDep)
 			}
 		}
@@ -623,9 +628,7 @@ func deepCopyObjectAndTranslateDepsToResult(res object.Object, args []object.Obj
 		translatedLenDeps := object.TraceMetadata{}
 		for lenDep, doesDepend := range res.(*object.Array).LengthMetadata.Dependencies {
 			if doesDepend {
-				//fmt.Printf("searching for array dep: %s\n", lenDep)
 				transLenDep := getDepsFromArray(lenDep, 0, args)
-				//fmt.Printf("found: %+v\n", transLenDep)
 				translatedLenDeps = object.MergeDependencies(translatedLenDeps, transLenDep)
 			}
 		}
@@ -638,9 +641,7 @@ func deepCopyObjectAndTranslateDepsToResult(res object.Object, args []object.Obj
 		translatedDeps := object.TraceMetadata{}
 		for dep, doesDepend := range res.GetMetadata().Dependencies {
 			if doesDepend {
-				//fmt.Printf("searching for dep: %s\n", dep)
 				transDep := getDepsFromArray(dep, 0, args)
-				//fmt.Printf("found: %+v\n", transDep)
 				translatedDeps = object.MergeDependencies(translatedDeps, transDep)
 			}
 		}
