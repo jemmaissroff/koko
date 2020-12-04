@@ -15,8 +15,6 @@ const PROMPT = ">> "
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
 	env := object.NewEnvironment()
-	evaluator.LoadProgram("let p = 0", env)
-	evaluator.LoadProgramFromFile("library/standard.koko", env)
 
 	for {
 		fmt.Fprintf(out, PROMPT)

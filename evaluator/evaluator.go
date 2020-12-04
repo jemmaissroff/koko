@@ -59,6 +59,12 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return val
 		}
 		return env.Set(node.Name.Value, val)
+	case *ast.ImportStatement:
+		// TODO: Decide on whether to output the result of the file?
+		// Right now this return nil means that the last line of the
+		// file won't appear in the repl
+		LoadProgramFromFile(node.Value, env)
+		return nil
 	case *ast.Identifier:
 		return evalIdentifier(node, env)
 	case *ast.FunctionLiteral:
