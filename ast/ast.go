@@ -123,6 +123,17 @@ func (bs *BlockStatement) String() string {
 	return out.String()
 }
 
+type ImportStatement struct {
+	Token token.Token // the IMPORT token
+	Value string
+}
+
+func (is *ImportStatement) statementNode()       {}
+func (is *ImportStatement) TokenLiteral() string { return is.Token.Literal }
+func (is *ImportStatement) String() string {
+	return is.Value
+}
+
 // Expressions
 type Identifier struct {
 	Token token.Token // the token.IDENT token

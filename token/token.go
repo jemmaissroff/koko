@@ -56,19 +56,21 @@ const (
 	ELSE          = "ELSE"
 	ELSIF         = "ELSIF"
 	RETURN        = "RETURN"
+	IMPORT        = "IMPORT"
 )
 
 // Jem: Would be cool to make this default lookup the token type in all caps??
 var keywords = map[string]TokenType{
-	"fn":     FUNCTION,
-	"pfn":    PURE_FUNCTION,
-	"let":    LET,
-	"true":   TRUE,
-	"false":  FALSE,
-	"if":     IF,
 	"else":   ELSE,
 	"elsif":  ELSIF,
+	"false":  FALSE,
+	"fn":     FUNCTION,
+	"if":     IF,
+	"import": IMPORT,
+	"let":    LET,
+	"pfn":    PURE_FUNCTION,
 	"return": RETURN,
+	"true":   TRUE,
 }
 
 func LookupIdent(ident string) TokenType {

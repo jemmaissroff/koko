@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"io/ioutil"
 	"koko/object"
 	"math/rand"
 	"sort"
@@ -195,6 +196,25 @@ func init() {
 					elements = append(elements, hashPair.Value)
 				}
 				return &object.Array{Elements: elements}
+			},
+		},
+		"read": &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if err := validateNumberOfArgs(1, args); err != object.NIL {
+					return err
+				}
+
+				if args[0].Type() != object.STRING_OBJ {
+					return newError("argument to `read` must be STRING, got %s", args[0].Type())
+				}
+
+				fileLocation := args[0].(*object.String).Value
+				data, err := ioutil.ReadFile(fileLocation)
+
+				if err != nil {
+					return newError("File reading error %v", fileLocation)
+				}
+				return &object.String{Value: string(data)}
 			},
 		},
 		"rando": &object.Builtin{
