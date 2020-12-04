@@ -84,7 +84,10 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 
 		res := applyFunction(function, args)
-		return deepCopyObjectAndTranslateDepsToResult(res, args)
+		fmt.Printf("in m: %+v\n", res.GetMetadata())
+		out := deepCopyObjectAndTranslateDepsToResult(res, args)
+		fmt.Printf("out m: %+v\n", out.GetMetadata())
+		return out
 	case *ast.ArrayLiteral:
 		elements := evalExpressions(node.Elements, env)
 		if len(elements) == 1 && isError(elements[0]) {
@@ -153,9 +156,14 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 
 func evalInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	if operator == "==" {
-		return nativeBoolToBooleanObject(left.Equal(right))
+		// TODO (Peter) in the future make obejct comparisons more granular
+		res := nativeBoolToBooleanObject(left.Equal(right)).Copy()
+		res.SetMetadata(object.MergeDependencies(left.GetMetadata(), right.GetMetadata()))
+		return res
 	} else if operator == "!=" {
-		return nativeBoolToBooleanObject(!left.Equal(right))
+		res := nativeBoolToBooleanObject(!left.Equal(right))
+		res.SetMetadata(object.MergeDependencies(left.GetMetadata(), right.GetMetadata()))
+		return res
 	}
 	switch {
 	case left.Type() == object.ARRAY_OBJ:
@@ -323,7 +331,7 @@ func evalArrayInfixExpression(operator string, left object.Object, right object.
 		res := addElements(left.(*object.Array), right.(*object.Array))
 		return res
 	default:
-		return object.NIL
+		return object.NIL.Copy()
 	}
 }
 
@@ -412,9 +420,9 @@ func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 
 func nativeBoolToBooleanObject(input bool) *object.Boolean {
 	if input {
-		return object.TRUE
+		return (object.TRUE.Copy()).(*object.Boolean)
 	}
-	return object.FALSE
+	return (object.FALSE.Copy()).(*object.Boolean)
 }
 
 func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Object {
@@ -535,12 +543,6 @@ func deepCopyAndAddDepsToArg(arg object.Object, prefix string) object.Object {
 func getDepsFromArray(identifier string, pos int, arr []object.Object) object.TraceMetadata {
 	// TODO (Peter) strings are not efficient at all!
 	// Oh god there's a lot of cringe in this code
-	fmt.Printf("ident: %s at pos %d\n", identifier, pos)
-	fmt.Printf("elements: ")
-	for _, e := range arr {
-		fmt.Printf("%+v,", e)
-	}
-	fmt.Printf("\n")
 	num := 0
 	needsLen := false
 	for i := pos; i < len(identifier); i++ {
@@ -556,7 +558,6 @@ func getDepsFromArray(identifier string, pos int, arr []object.Object) object.Tr
 			pos++
 		}
 	}
-	//fmt.Printf("about to search %d at pos %d\n", num, pos)
 	elem := arr[num]
 	if pos >= len(identifier) {
 		return elem.GetMetadata()

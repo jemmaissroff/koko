@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"fmt"
 	"koko/object"
 	"math/rand"
 	"sort"
@@ -31,6 +32,18 @@ func init() {
 					)
 				}
 				return &object.Array{Elements: builtinKeys}
+			},
+		},
+		"print": &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return newError("wrong number of arguments. got=%d, need 1",
+						len(args))
+				}
+
+				res := args[0]
+				fmt.Println(res.Inspect())
+				return res
 			},
 		},
 		"deps": &object.Builtin{
@@ -66,6 +79,7 @@ func init() {
 					value = int64(len(args[0].(*object.Array).Elements))
 					res := object.Integer{Value: value}
 					res.SetMetadata(args[0].(*object.Array).LengthMetadata)
+					fmt.Printf("len metadata: %+v\n", res.GetMetadata().Dependencies)
 					return &res
 				case *object.Hash:
 					value = int64(len(args[0].(*object.Hash).Pairs))

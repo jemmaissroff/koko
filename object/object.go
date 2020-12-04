@@ -323,6 +323,7 @@ func (a *Array) GetMetadata() TraceMetadata {
 		// (TODO) Peter: this is n^2 could EASILY be n with a one sided merge
 		res = MergeDependencies(res, e.GetMetadata())
 	}
+	res = MergeDependencies(res, a.LengthMetadata)
 	return res
 }
 func (a *Array) SetMetadata(metadata TraceMetadata) { a.metadata = metadata }
