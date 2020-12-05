@@ -286,7 +286,7 @@ type Array struct {
 	Elements       []Object
 	metadata       TraceMetadata
 	LengthMetadata TraceMetadata
-	OffsetMetadata TraceMetadata
+	OffsetMetadata []TraceMetadata
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }
@@ -325,7 +325,6 @@ func (a *Array) GetMetadata() TraceMetadata {
 		res = MergeDependencies(res, e.GetMetadata())
 	}
 	res = MergeDependencies(res, a.LengthMetadata)
-	res = MergeDependencies(res, a.OffsetMetadata)
 	return res
 }
 func (a *Array) SetMetadata(metadata TraceMetadata) { a.metadata = metadata }

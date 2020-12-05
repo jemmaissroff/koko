@@ -123,6 +123,15 @@ func TestDependencyTrackingInSubFunctionsWithArrayConcatenation(t *testing.T) {
 	assertObjectDepsEqual(t, res, []string{"1|1"})
 }
 
+func TestLengthDependenciesInArrayConcatenationThroughSubFunctionTrampoline(t *testing.T) {
+	program := `
+	let f = fn(x) { x };
+	let g = fn(a, b) { len(f(a+b)) }
+	deps(g, [1,2], [3,4,5])`
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0#", "1#"})
+}
+
 func TestOffsetDependenciesInSubArrays(t *testing.T) {
 	program := "let f = fn(a, b) { (a + b)[3][2][1] }; deps(f, [1, 2, 3], [[4, 5, [6, 7]]])"
 	res := testEval(program)
@@ -133,6 +142,15 @@ func TestOffsetDependenciesInSubArraysThroughFunctions(t *testing.T) {
 	program := `
 	let f = fn(x, y, a, b) { a + b };
 	let g = fn(a, b) { f(0, 0, a, b)[3][2][1] }
+	deps(g, [1, 2, 3], [[4, 5, [6, 7]]])`
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"1|0|2|1", "0#"})
+}
+
+func TestOffsetDependenciesInSubArraysThroughSubFunctionTrampoline(t *testing.T) {
+	program := `
+	let f = fn(x) { x };
+	let g = fn(a, b) { f(a+b)[3][2][1] }
 	deps(g, [1, 2, 3], [[4, 5, [6, 7]]])`
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"1|0|2|1", "0#"})
