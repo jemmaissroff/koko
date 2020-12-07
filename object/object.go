@@ -22,6 +22,7 @@ const (
 	FUNCTION_OBJ = "FUNCTION"
 	BUILTIN_OBJ  = "BUILTIN"
 	ARRAY_OBJ    = "ARRAY"
+	TRACE_OBJ    = "TRACE"
 	HASH_OBJ     = "HASH"
 )
 
@@ -38,24 +39,61 @@ var (
 	EMPTY_HASH   = &Hash{Pairs: make(map[HashKey]HashPair)}
 )
 
+func copyDependencies(deps []Object) []Object {
+	res := make([]Object, len(deps))
+	copy(res, deps)
+	return res
+}
+
+func GetAllDependencies(result Object) map[Object]bool {
+	out := make(map[Object]bool)
+	queue := []Object{}
+	queue = append(queue, result)
+	for len(queue) > 0 {
+		head := queue[0]
+		if out[head] {
+			if len(queue) > 1 {
+				queue = queue[1:]
+			} else {
+				queue = []Object{}
+			}
+			continue
+		}
+		out[head] = true
+		if len(queue) > 1 {
+			queue = append(queue[1:], head.GetDependencyLinks()...)
+		} else {
+			queue = head.GetDependencyLinks()
+		}
+	}
+	return out
+}
+
 type Object interface {
 	Type() ObjectType
 	Inspect() string
 	String() String
+	Copy() Object
 	Equal(o Object) bool
 	Falsey() Object
+	AddDependency(dep Object)
+	GetDependencyLinks() []Object
 }
 
 func Bool(o Object) bool { return !o.Equal(o.Falsey()) }
 
 type Integer struct {
-	Value int64
+	Value        int64
+	Dependencies []Object
 }
 
 func (i *Integer) Inspect() string  { return fmt.Sprintf("%d", i.Value) }
 func (i *Integer) Type() ObjectType { return INTEGER_OBJ }
 func (i *Integer) String() String   { return String{Value: i.Inspect()} }
 func (i *Integer) Float() Float     { return Float{Value: float64(i.Value)} }
+func (i *Integer) Copy() Object {
+	return &Integer{Value: i.Value, Dependencies: []Object{i}}
+}
 func (i *Integer) HashKey() HashKey {
 	return HashKey{Type: i.Type(), Value: float64(i.Value)}
 }
@@ -64,9 +102,17 @@ func (i *Integer) Equal(o Object) bool {
 	return ok && comp.Value == i.Value
 }
 func (i *Integer) Falsey() Object { return ZERO_INTEGER }
+func (i *Integer) AddDependency(dep Object) {
+	if dep == nil {
+		panic("oh fuck lol")
+	}
+	i.Dependencies = append(i.Dependencies, dep)
+}
+func (i *Integer) GetDependencyLinks() []Object { return i.Dependencies }
 
 type Float struct {
-	Value float64
+	Value        float64
+	Dependencies []Object
 }
 
 func (f *Float) Inspect() string {
@@ -77,6 +123,9 @@ func (f *Float) Inspect() string {
 }
 func (f *Float) Type() ObjectType { return FLOAT_OBJ }
 func (f *Float) String() String   { return String{Value: f.Inspect()} }
+func (f *Float) Copy() Object {
+	return &Float{Value: f.Value, Dependencies: []Object{f}}
+}
 func (f *Float) HashKey() HashKey {
 	return HashKey{Type: f.Type(), Value: f.Value}
 }
@@ -86,13 +135,20 @@ func (f *Float) Equal(o Object) bool {
 }
 func (f *Float) Falsey() Object { return ZERO_FLOAT }
 
+func (f *Float) AddDependency(dep Object)     { f.Dependencies = append(f.Dependencies, dep) }
+func (f *Float) GetDependencyLinks() []Object { return f.Dependencies }
+
 type Boolean struct {
-	Value bool
+	Value        bool
+	Dependencies []Object
 }
 
 func (b *Boolean) Type() ObjectType { return BOOLEAN_OBJ }
 func (b *Boolean) Inspect() string  { return fmt.Sprintf("%t", b.Value) }
 func (b *Boolean) String() String   { return String{Value: b.Inspect()} }
+func (b *Boolean) Copy() Object {
+	return &Boolean{Value: b.Value, Dependencies: []Object{b}}
+}
 func (b *Boolean) HashKey() HashKey {
 	var value float64
 	if b.Value {
@@ -108,13 +164,20 @@ func (b *Boolean) Equal(o Object) bool {
 }
 func (b *Boolean) Falsey() Object { return FALSE }
 
+func (b *Boolean) AddDependency(dep Object)     { b.Dependencies = append(b.Dependencies, dep) }
+func (b *Boolean) GetDependencyLinks() []Object { return b.Dependencies }
+
 type String struct {
-	Value string
+	Value        string
+	Dependencies []Object
 }
 
 func (s *String) Type() ObjectType { return STRING_OBJ }
 func (s *String) Inspect() string  { return s.Value }
 func (s *String) String() String   { return *s }
+func (s *String) Copy() Object {
+	return &String{Value: s.Value, Dependencies: []Object{s}}
+}
 func (s *String) Equal(o Object) bool {
 	comp, ok := o.(*String)
 	return ok && comp.Value == s.Value
@@ -128,32 +191,49 @@ func (s *String) HashKey() HashKey {
 	return HashKey{Type: s.Type(), Value: float64(h.Sum64())}
 }
 
+func (s *String) AddDependency(dep Object)     { s.Dependencies = append(s.Dependencies, dep) }
+func (s *String) GetDependencyLinks() []Object { return s.Dependencies }
+
 type Return struct {
-	Value Object
+	Value        Object
+	Dependencies []Object
 }
 
 func (r *Return) Type() ObjectType { return RETURN_OBJ }
 func (r *Return) Inspect() string  { return fmt.Sprintf("%v", r.Value.Inspect()) }
 func (r *Return) String() String   { return String{Value: r.Inspect()} }
+func (r *Return) Copy() Object {
+	return &Return{Value: r.Value, Dependencies: []Object{r}}
+}
 func (r *Return) Equal(o Object) bool {
 	comp, ok := o.(*Return)
 	return ok && comp.Value == r.Value
 }
 func (r *Return) Falsey() Object { return NIL }
 
-type Nil struct{}
+func (r *Return) AddDependency(dep Object)     { r.Dependencies = append(r.Dependencies, dep) }
+func (r *Return) GetDependencyLinks() []Object { return r.Dependencies }
+
+type Nil struct {
+	Dependencies []Object
+}
 
 func (n *Nil) Type() ObjectType { return NIL_OBJ }
 func (n *Nil) Inspect() string  { return "nil" }
 func (n *Nil) String() String   { return String{Value: n.Inspect()} }
+func (n *Nil) Copy() Object     { return &Nil{Dependencies: []Object{n}} }
 func (n *Nil) Equal(o Object) bool {
 	_, ok := o.(*Nil)
 	return ok
 }
 func (n *Nil) Falsey() Object { return NIL }
 
+func (n *Nil) AddDependency(dep Object)     { n.Dependencies = append(n.Dependencies, dep) }
+func (n *Nil) GetDependencyLinks() []Object { return n.Dependencies }
+
 type Error struct {
-	Message string
+	Message      string
+	Dependencies []Object
 }
 
 // JEM: In order to print helpful error messages, need to add line and context
@@ -162,16 +242,23 @@ type Error struct {
 func (e *Error) Type() ObjectType { return ERROR_OBJ }
 func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
 func (e *Error) String() String   { return String{Value: e.Inspect()} }
+func (e *Error) Copy() Object {
+	return &Error{Message: e.Message, Dependencies: []Object{e}}
+}
 func (r *Error) Equal(o Object) bool {
 	comp, ok := o.(*Error)
 	return ok && comp.Message == r.Message
 }
 func (e *Error) Falsey() Object { return NIL }
 
+func (e *Error) AddDependency(dep Object)     { e.Dependencies = append(e.Dependencies, dep) }
+func (e *Error) GetDependencyLinks() []Object { return e.Dependencies }
+
 type Function struct {
-	Parameters []*ast.Identifier
-	Body       *ast.BlockStatement
-	Env        *Environment
+	Parameters   []*ast.Identifier
+	Body         *ast.BlockStatement
+	Env          *Environment
+	Dependencies []Object
 }
 
 func (f *Function) Type() ObjectType { return FUNCTION_OBJ }
@@ -193,6 +280,9 @@ func (f *Function) Inspect() string {
 	return out.String()
 }
 func (f *Function) String() String { return String{Value: f.Inspect()} }
+func (f *Function) Copy() Object {
+	return &Function{Parameters: f.Parameters, Body: f.Body, Env: f.Env, Dependencies: []Object{f}}
+}
 
 // JEM: Could properly implement function comparison
 func (f *Function) Equal(o Object) bool {
@@ -201,15 +291,22 @@ func (f *Function) Equal(o Object) bool {
 }
 func (f *Function) Falsey() Object { return NIL }
 
+func (f *Function) AddDependency(dep Object)     { f.Dependencies = append(f.Dependencies, dep) }
+func (f *Function) GetDependencyLinks() []Object { return f.Dependencies }
+
 type BuiltinFunction func(args ...Object) Object
 
 type Builtin struct {
-	Fn BuiltinFunction
+	Fn           BuiltinFunction
+	Dependencies []Object
 }
 
 func (b *Builtin) Type() ObjectType { return BUILTIN_OBJ }
 func (b *Builtin) Inspect() string  { return "builtin function" }
 func (b *Builtin) String() String   { return String{Value: b.Inspect()} }
+func (b *Builtin) Copy() Object {
+	return &Builtin{Fn: b.Fn, Dependencies: []Object{b}}
+}
 
 // JEM: Could properly implement builtin comparison
 func (b *Builtin) Equal(o Object) bool {
@@ -218,8 +315,23 @@ func (b *Builtin) Equal(o Object) bool {
 }
 func (b *Builtin) Falsey() Object { return NIL }
 
+func (b *Builtin) AddDependency(dep Object)     { b.Dependencies = append(b.Dependencies, dep) }
+func (b *Builtin) GetDependencyLinks() []Object { return b.Dependencies }
+
 type Array struct {
-	Elements []Object
+	Elements     []Object
+	Dependencies []Object
+	Length       Integer
+	Offset       Integer
+}
+
+func CreateArray(elements []Object) *Array {
+	res := Array{Elements: elements, Length: Integer{Value: int64(len(elements))}}
+	for _, e := range elements {
+		res.AddDependency(e)
+	}
+	res.AddDependency(&res.Length)
+	return &res
 }
 
 func (a *Array) Type() ObjectType { return ARRAY_OBJ }
@@ -249,12 +361,30 @@ func (a *Array) Equal(o Object) bool {
 	return true
 }
 func (a *Array) Falsey() Object { return EMPTY_ARRAY }
+func (a *Array) Copy() Object {
+	return &Array{Elements: a.Elements, Dependencies: []Object{a}, Length: *a.Length.Copy().(*Integer), Offset: *a.Offset.Copy().(*Integer)}
+}
+
+func (a *Array) AddDependency(dep Object) {
+	a.Dependencies = append(a.Dependencies, dep)
+}
+func (a *Array) AddLengthDependency(dep Object) {
+	a.Length.AddDependency(dep)
+}
+func (a *Array) AddOffsetDependency(dep Object) {
+	a.Offset.AddDependency(dep)
+}
+
+func (a *Array) GetDependencyLinks() []Object {
+	return append(append([]Object{}, a.Dependencies...), &a.Offset, &a.Length)
+}
 
 type PureFunction struct {
-	Parameters []*ast.Identifier
-	Body       *ast.BlockStatement
-	Env        *Environment
-	Cache      map[string]Object
+	Parameters   []*ast.Identifier
+	Body         *ast.BlockStatement
+	Env          *Environment
+	Cache        map[string]Object
+	Dependencies []Object
 }
 
 func NewPureFunction(parameters []*ast.Identifier, env *Environment, body *ast.BlockStatement) *PureFunction {
@@ -291,12 +421,19 @@ func (f *PureFunction) Set(args []Object, val Object) Object {
 	f.Cache[objectsToString(args)] = val
 	return val
 }
+func (f *PureFunction) Copy() Object {
+	return &PureFunction{Parameters: f.Parameters, Body: f.Body, Cache: f.Cache, Env: f.Env, Dependencies: []Object{f}}
+}
+
+func (f *PureFunction) AddDependency(dep Object) { f.Dependencies = append(f.Dependencies, dep) }
 
 // JEM: Could properly implement function comparison
 func (f *PureFunction) Equal(o Object) bool {
 	_, ok := o.(*PureFunction)
 	return ok && false
 }
+
+func (f *PureFunction) GetDependencyLinks() []Object { return f.Dependencies }
 
 func objectsToString(args []Object) string {
 	var res string
@@ -312,7 +449,19 @@ type HashPair struct {
 }
 
 type Hash struct {
-	Pairs map[HashKey]HashPair
+	Pairs        map[HashKey]HashPair
+	Length       Integer
+	Dependencies []Object
+}
+
+func CreateHash(pairs map[HashKey]HashPair) *Hash {
+	res := Hash{Pairs: pairs, Length: Integer{Value: int64(len(pairs))}}
+	for _, v := range res.Pairs {
+		res.AddDependency(v.Key)
+		res.AddDependency(v.Value)
+	}
+	res.AddDependency(&res.Length)
+	return &res
 }
 
 func (h *Hash) Type() ObjectType { return HASH_OBJ }
@@ -345,6 +494,14 @@ func (h *Hash) Equal(o Object) bool {
 }
 func (h *Hash) Falsey() Object { return EMPTY_HASH }
 
+func (h *Hash) Copy() Object {
+	return &Hash{Pairs: h.Pairs, Length: *h.Length.Copy().(*Integer), Dependencies: []Object{h}}
+}
+
+func (h *Hash) AddDependency(dep Object) { h.Dependencies = append(h.Dependencies, dep) }
+
+func (h *Hash) GetDependencyLinks() []Object { return h.Dependencies }
+
 type HashKey struct {
 	Type  ObjectType
 	Value float64
@@ -353,3 +510,27 @@ type HashKey struct {
 type Hashable interface {
 	HashKey() HashKey
 }
+
+type DebugTraceMetadata struct {
+	DebugMetadata map[string]bool
+	Dependencies  []Object
+}
+
+// NOTE this object is techincal debt
+// TODO (Peter) remove this gracefully and replace with a better version
+func (d *DebugTraceMetadata) Type() ObjectType { return "DEBUGTRACEMETADATA" }
+func (d *DebugTraceMetadata) Inspect() string  { return fmt.Sprintf("%+v\n", d.DebugMetadata) }
+func (d *DebugTraceMetadata) String() String   { return String{Value: d.Inspect()} }
+func (d *DebugTraceMetadata) Copy() Object {
+	return &DebugTraceMetadata{DebugMetadata: d.DebugMetadata, Dependencies: []Object{d}}
+}
+
+// JEM: Could properly implement builtin comparison
+func (d *DebugTraceMetadata) Equal(o Object) bool {
+	_, ok := o.(*Builtin)
+	return ok && false
+}
+func (d *DebugTraceMetadata) Falsey() Object { return NIL }
+
+func (d *DebugTraceMetadata) AddDependency(dep Object)     { d.Dependencies = append(d.Dependencies, dep) }
+func (d *DebugTraceMetadata) GetDependencyLinks() []Object { return d.Dependencies }

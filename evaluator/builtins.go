@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"fmt"
 	"io/ioutil"
 	"koko/object"
 	"math/rand"
@@ -9,6 +10,29 @@ import (
 )
 
 var builtins map[string]*object.Builtin
+
+// NOTE (Peter) this function is techincal debt
+func getObjRelatedDependenciesInTrace(obj object.Object, trace map[object.Object]bool, prefix string, out map[string]bool) {
+	if _, ok := trace[obj]; ok {
+		out[prefix] = true
+	}
+	if arrObj, ok := obj.(*object.Array); ok {
+		if _, ok := trace[&arrObj.Length]; ok {
+			out[prefix+"#"] = true
+		}
+		for i, subObj := range arrObj.Elements {
+			getObjRelatedDependenciesInTrace(subObj, trace, prefix+"|"+fmt.Sprint(i), out)
+		}
+	}
+	if hashObj, ok := obj.(*object.Hash); ok {
+		if _, ok := trace[&hashObj.Length]; ok {
+			out[prefix+"#"] = true
+		}
+		for _, pair := range hashObj.Pairs {
+			getObjRelatedDependenciesInTrace(pair.Value, trace, prefix+"|@"+fmt.Sprint(pair.Key.Inspect()), out)
+		}
+	}
+}
 
 // Builtins is in an init so that its creation is deferred and we can define
 // the builtin function builtins without an initialization loop
@@ -31,7 +55,42 @@ func init() {
 						&object.String{Value: builtinFunction},
 					)
 				}
-				return &object.Array{Elements: builtinKeys}
+				return object.CreateArray(builtinKeys)
+			},
+		},
+		"print": &object.Builtin{
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return newError("wrong number of arguments. got=%d, need 1",
+						len(args))
+				}
+
+				res := args[0]
+				fmt.Println(res.Inspect())
+				return res
+			},
+		},
+		"deps": &object.Builtin{
+			// NOTE this function is legacy to support tests from the old version
+			// TODO (Peter) update this to a better version later
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) < 1 {
+					return newError("wrong number of arguments. got=%d, need at least=%d",
+						len(args), 1)
+				}
+
+				fn := args[0]
+				fnRes := applyFunction(fn, args[1:])
+
+				traceDeps := object.GetAllDependencies(fnRes)
+				argDeps := make(map[string]bool)
+				for i, arg := range args[1:] {
+					getObjRelatedDependenciesInTrace(arg, traceDeps, fmt.Sprint(i), argDeps)
+				}
+
+				res := object.DebugTraceMetadata{DebugMetadata: argDeps}
+				res.AddDependency(fnRes)
+				return &res
 			},
 		},
 		"len": &object.Builtin{
@@ -44,12 +103,20 @@ func init() {
 				switch args[0].(type) {
 				case *object.Array:
 					value = int64(len(args[0].(*object.Array).Elements))
+					res := object.Integer{Value: value}
+					res.AddDependency(&args[0].(*object.Array).Length)
+					return &res
 				case *object.Hash:
 					value = int64(len(args[0].(*object.Hash).Pairs))
+					res := object.Integer{Value: value}
+					res.AddDependency(&args[0].(*object.Hash).Length)
+					return &res
 				default:
 					value = int64(len(args[0].String().Value))
+					res := object.Integer{Value: value}
+					res.AddDependency(args[0])
+					return &res
 				}
-				return &object.Integer{Value: value}
 			},
 		},
 		"type": &object.Builtin{
@@ -83,7 +150,9 @@ func init() {
 				switch arg := args[0].(type) {
 				case *object.String:
 					for _, val := range arg.Value {
-						elements = append(elements, &object.String{Value: string(val)})
+						e := &object.String{Value: string(val)}
+						e.AddDependency(arg)
+						elements = append(elements, e)
 					}
 				case *object.Array:
 					return arg
@@ -91,7 +160,12 @@ func init() {
 					elements = append(elements, arg)
 				}
 
-				return &object.Array{Elements: elements}
+				// NOTE (Peter) this should be okay instead of calling object.CreateArray
+				// But be very careful when changing this for dependency reasons
+				res := object.Array{Elements: elements}
+				res.AddDependency(args[0])
+				res.AddLengthDependency(args[0])
+				return &res
 			},
 		},
 		"bool": &object.Builtin{
@@ -113,19 +187,29 @@ func init() {
 				case *object.Integer:
 					return arg
 				case *object.Float:
-					return &object.Integer{Value: int64(arg.Value)}
+					res := &object.Integer{Value: int64(arg.Value)}
+					res.AddDependency(arg)
+					return res
 				case *object.Boolean:
 					if arg == object.TRUE {
-						return &object.Integer{Value: 1}
+						res := &object.Integer{Value: 1}
+						res.AddDependency(arg)
+						return res
 					} else {
-						return &object.Integer{Value: 0}
+						res := &object.Integer{Value: 0}
+						res.AddDependency(arg)
+						return res
 					}
 				case *object.String:
 					i, err := strconv.ParseInt(arg.String().Value, 10, 64)
 					if err != nil {
-						return object.NIL
+						res := object.NIL.Copy()
+						res.AddDependency(arg)
+						return res
 					} else {
-						return &object.Integer{Value: i}
+						res := &object.Integer{Value: i}
+						res.AddDependency(arg)
+						return res
 					}
 				default:
 					return newError("can't cast %s to an int", arg.Type())
@@ -140,19 +224,27 @@ func init() {
 
 				switch arg := args[0].(type) {
 				case *object.Integer:
-					return &object.Float{Value: float64(arg.Value)}
+					res := &object.Float{Value: float64(arg.Value)}
+					res.AddDependency(arg)
+					return res
 				case *object.Float:
 					return arg
 				case *object.Boolean:
 					if arg == object.TRUE {
-						return &object.Float{Value: 1}
+						res := &object.Float{Value: 1}
+						res.AddDependency(arg)
+						return res
 					} else {
-						return &object.Float{Value: 0}
+						res := &object.Float{Value: 0}
+						res.AddDependency(arg)
+						return res
 					}
 				case *object.String:
 					f, err := strconv.ParseFloat(arg.String().Value, 64)
 					if err != nil {
-						return object.NIL
+						res := object.NIL.Copy()
+						res.AddDependency(arg)
+						return res
 					} else {
 						return &object.Float{Value: f}
 					}
@@ -176,7 +268,7 @@ func init() {
 				for _, hashPair := range hash.Pairs {
 					elements = append(elements, hashPair.Key)
 				}
-				return &object.Array{Elements: elements}
+				return object.CreateArray(elements)
 			},
 		},
 		"values": &object.Builtin{
@@ -195,7 +287,7 @@ func init() {
 				for _, hashPair := range hash.Pairs {
 					elements = append(elements, hashPair.Value)
 				}
-				return &object.Array{Elements: elements}
+				return object.CreateArray(elements)
 			},
 		},
 		"read": &object.Builtin{
@@ -214,7 +306,9 @@ func init() {
 				if err != nil {
 					return newError("File reading error %v", fileLocation)
 				}
-				return &object.String{Value: string(data)}
+				res := &object.String{Value: string(data)}
+				res.AddDependency(args[0])
+				return res
 			},
 		},
 		"rando": &object.Builtin{
@@ -231,7 +325,9 @@ func init() {
 				if arg.Value < 1 {
 					return newError("argument to `rando` must be at least 1, got %v", arg.Value)
 				}
-				return &object.Integer{Value: int64(rand.Intn(int(arg.Value)))}
+				res := &object.Integer{Value: int64(rand.Intn(int(arg.Value)))}
+				res.AddDependency(arg)
+				return res
 			},
 		},
 	}

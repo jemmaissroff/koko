@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"koko/executor"
+	"koko/evaluator"
 	"syscall/js"
 )
 
@@ -13,7 +13,7 @@ func main() {
 		go func() {
 			// Simplified code
 			programStr := args[0].String()
-			js.Global().Set("output", executor.ExecuteProgram(programStr))
+			js.Global().Set("output", evaluator.ExecuteProgram(programStr))
 		}()
 		return nil
 	}))

@@ -25,7 +25,9 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(val) {
 			return val
 		}
-		return &object.Return{Value: val}
+		res := &object.Return{Value: val}
+		res.AddDependency(val)
+		return res
 
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
@@ -42,6 +44,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 		return evalPrefixExpression(node.Operator, right)
 	case *ast.InfixExpression:
+		// TODO (Peter) add short circuiting
 		left := Eval(node.Left, env)
 		if isError(left) {
 			return left
@@ -84,14 +87,13 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if len(args) == 1 && isError(args[0]) {
 			return args[0]
 		}
-
 		return applyFunction(function, args)
 	case *ast.ArrayLiteral:
 		elements := evalExpressions(node.Elements, env)
 		if len(elements) == 1 && isError(elements[0]) {
 			return elements[0]
 		}
-		return &object.Array{Elements: elements}
+		return object.CreateArray(elements)
 	case *ast.IndexExpression:
 		left := Eval(node.Left, env)
 		if isError(left) {
@@ -154,9 +156,16 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 
 func evalInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	if operator == "==" {
-		return nativeBoolToBooleanObject(left.Equal(right))
+		// TODO (Peter) in the future make obejct comparisons more granular
+		res := nativeBoolToBooleanObject(left.Equal(right)).Copy()
+		res.AddDependency(left)
+		res.AddDependency(right)
+		return res
 	} else if operator == "!=" {
-		return nativeBoolToBooleanObject(!left.Equal(right))
+		res := nativeBoolToBooleanObject(!left.Equal(right))
+		res.AddDependency(left)
+		res.AddDependency(right)
+		return res
 	}
 	switch {
 	case left.Type() == object.ARRAY_OBJ:
@@ -211,150 +220,229 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 func evalIntegerInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	lVal := left.(*object.Integer).Value
 	rVal := right.(*object.Integer).Value
+	var res object.Object
 
 	switch operator {
 	case "+":
-		return &object.Integer{Value: lVal + rVal}
+		res = &object.Integer{Value: lVal + rVal}
 	case "-":
-		return &object.Integer{Value: lVal - rVal}
+		res = &object.Integer{Value: lVal - rVal}
 	case "*":
-		return &object.Integer{Value: lVal * rVal}
+		res = &object.Integer{Value: lVal * rVal}
+		// Extra trick: If one number is actually zero we only need to depend on it!
+		// This is a short circuit dependency
+		if lVal == 0 {
+			res.AddDependency(left)
+			return res
+		} else if rVal == 0 {
+			res.AddDependency(right)
+			return res
+		}
 	case "/":
-		return evalFloatInfixExpression(operator, intToFloat(left), intToFloat(right))
+		res = evalFloatInfixExpression(operator, intToFloat(left), intToFloat(right))
 	case "<":
-		return nativeBoolToBooleanObject(lVal < rVal)
+		res = nativeBoolToBooleanObject(lVal < rVal)
 	case ">":
-		return nativeBoolToBooleanObject(lVal > rVal)
+		res = nativeBoolToBooleanObject(lVal > rVal)
 	case "%":
-		return &object.Integer{Value: lVal % rVal}
+		res = &object.Integer{Value: lVal % rVal}
 	default:
 		return newError("unknown operator for INTEGER %v", operator)
 	}
+	res.AddDependency(left)
+	res.AddDependency(right)
+	return res
 }
 
 func evalFloatInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	lVal := left.(*object.Float).Value
 	rVal := right.(*object.Float).Value
 
+	var res object.Object
 	switch operator {
 	case "+":
-		return &object.Float{Value: lVal + rVal}
+		res = &object.Float{Value: lVal + rVal}
 	case "-":
-		return &object.Float{Value: lVal - rVal}
+		res = &object.Float{Value: lVal - rVal}
 	case "*":
-		return &object.Float{Value: lVal * rVal}
+		res = &object.Float{Value: lVal * rVal}
+		// Extra trick: If one number is actually zero we only need to depend on it!
+		// This is a short circuit dependency
+		if lVal == 0 {
+			res.AddDependency(left)
+			return res
+		} else if rVal == 0 {
+			res.AddDependency(right)
+			return res
+		}
 	case "/":
-		return &object.Float{Value: lVal / rVal}
+		res = &object.Float{Value: lVal / rVal}
 	case "<":
-		return nativeBoolToBooleanObject(lVal < rVal)
+		res = nativeBoolToBooleanObject(lVal < rVal)
 	case ">":
-		return nativeBoolToBooleanObject(lVal > rVal)
+		res = nativeBoolToBooleanObject(lVal > rVal)
 	case "%":
-		return &object.Float{Value: math.Mod(lVal, rVal)}
+		res = &object.Float{Value: math.Mod(lVal, rVal)}
 	default:
-		return newError("unknown operator for FLOAT %v", operator)
+		res = newError("unknown operator for FLOAT %v", operator)
 	}
+	res.AddDependency(left)
+	res.AddDependency(right)
+	return res
 }
 
 func intToFloat(integer object.Object) *object.Float {
-	return &object.Float{Value: float64(integer.(*object.Integer).Value)}
+	res := &object.Float{Value: float64(integer.(*object.Integer).Value)}
+	res.AddDependency(integer)
+	return res
 }
 
 func evalStringInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	if operator == "+" {
+		// dependency assignment handled inside this function
 		return addStrings(left, right)
 	}
 	return newError("Unsupported Operator %s for strings", operator)
 }
 
 func multiplyStrings(str object.Object, integer object.Object) *object.String {
-	res := ""
+	resStr := ""
 	strVal := str.(*object.String).Value
-	for i := 0; i < int(integer.(*object.Integer).Value); i++ {
-		res += strVal
+	repeats := int(integer.(*object.Integer).Value)
+
+	// a small dependecy optimization; if the integer is 0, the string is irrelevant
+	if repeats <= 0 {
+		res := &object.String{Value: ""}
+		res.AddDependency(integer)
+		return res
 	}
-	return &object.String{Value: res}
+
+	// a small dependecy optimization; if the str is "", then the integer is irrelevant
+	if strVal == "" {
+		res := &object.String{Value: ""}
+		res.AddDependency(str)
+		return res
+	}
+
+	for i := 0; i < repeats; i++ {
+		resStr += strVal
+	}
+	res := &object.String{Value: resStr}
+	res.AddDependency(str)
+	res.AddDependency(integer)
+	return res
 }
 
 func addStrings(left object.Object, right object.Object) *object.String {
-	return &object.String{Value: left.String().Value + right.String().Value}
+	res := &object.String{Value: left.String().Value + right.String().Value}
+	res.AddDependency(left)
+	res.AddDependency(right)
+	return res
 }
 
 func evalArrayInfixExpression(operator string, left object.Object, right object.Object) object.Object {
-	lEls := left.(*object.Array).Elements
-	rEls := right.(*object.Array).Elements
-
 	switch operator {
 	case "+":
-		return addElements(lEls, rEls)
+		return addElements(left.(*object.Array), right.(*object.Array))
 	default:
 		return newError("Unsupported Operator %s for arrays", operator)
 	}
 }
 
-func addElements(left []object.Object, right []object.Object) *object.Array {
-	elements := make([]object.Object, 0, len(left)+len(right))
-	for _, el := range left {
-		elements = append(elements, el)
+func addElements(left *object.Array, right *object.Array) *object.Array {
+	elements := make([]object.Object, 0, len(left.Elements)+len(right.Elements))
+	// NOTE (Peter) this should be okay instead of calling object.CreateArray
+	// But be very careful when changing this for dependency reasons
+	res := object.Array{}
+	for _, el := range left.Elements {
+		elCopy := el.Copy()
+		res.AddDependency(elCopy)
+		elements = append(elements, elCopy)
 	}
-	for _, el := range right {
-		elements = append(elements, el)
+	for _, el := range right.Elements {
+		elCopy := el.Copy()
+		// objects on the right depend on the left array size for their index
+		// if the size of the left array shifts, the objects will change index
+		// they do not depend on the size of the right array
+		elCopy.AddDependency(&left.Length)
+		if elArr, ok := elCopy.(*object.Array); ok {
+			elArr.AddOffsetDependency(&left.Length)
+		}
+		res.AddDependency(elCopy)
+		elements = append(elements, elCopy)
 	}
-	return &object.Array{Elements: elements}
+	// TODO (Peter) do we need to do anything with the offsets here???
+	res.Elements = elements
+	res.Length.Value = int64(len(elements))
+	res.Length.AddDependency(&left.Length)
+	res.Length.AddDependency(&right.Length)
+	return &res
 }
 
 func evalHashInfixExpression(operator string, left object.Object, right object.Object) object.Object {
-	lPairs := left.(*object.Hash).Pairs
-	rPairs := right.(*object.Hash).Pairs
+	lHash := left.(*object.Hash)
+	rHash := right.(*object.Hash)
 
 	switch operator {
 	case "+":
-		return addPairs(lPairs, rPairs)
+		return addPairs(lHash, rHash)
 	case "-":
-		return subtractPairs(lPairs, rPairs)
+		return subtractPairs(lHash, rHash)
 	default:
 		return newError("Unsupported Operator %s for hashes", operator)
 	}
 }
 
-func addPairs(left map[object.HashKey]object.HashPair, right map[object.HashKey]object.HashPair) object.Object {
+func addPairs(left *object.Hash, right *object.Hash) object.Object {
 	pairs := make(map[object.HashKey]object.HashPair)
 
-	for k, v := range left {
+	for k, v := range left.Pairs {
 		pairs[k] = v
 	}
-	for k, v := range right {
+	for k, v := range right.Pairs {
 		pairs[k] = v
 	}
 
-	return &object.Hash{Pairs: pairs}
+	res := object.CreateHash(pairs)
+	res.Length.AddDependency(&left.Length)
+	res.Length.AddDependency(&right.Length)
+	return res
 }
 
-func subtractPairs(left map[object.HashKey]object.HashPair, right map[object.HashKey]object.HashPair) object.Object {
+func subtractPairs(left *object.Hash, right *object.Hash) object.Object {
 	pairs := make(map[object.HashKey]object.HashPair)
 
-	for k, v := range left {
+	for k, v := range left.Pairs {
 		pairs[k] = v
 	}
-	for k, v := range right {
+	for k, v := range right.Pairs {
 		if pairs[k].Value.Equal(v.Value) {
 			delete(pairs, k)
 		}
 	}
 
-	return &object.Hash{Pairs: pairs}
+	res := object.CreateHash(pairs)
+	res.Length.AddDependency(&left.Length)
+	res.Length.AddDependency(&right.Length)
+	return res
 }
 
 // JEM: This is pretty neat
 func evalBangOperatorExpression(right object.Object) object.Object {
-	return nativeBoolToBooleanObject(!object.Bool(right))
+	res := nativeBoolToBooleanObject(!object.Bool(right))
+	res.AddDependency(right)
+	return res
 }
 
 func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 	if right.Type() == object.INTEGER_OBJ {
-		return &object.Integer{Value: -(right.(*object.Integer).Value)}
+		res := &object.Integer{Value: -(right.(*object.Integer).Value)}
+		res.AddDependency(right)
+		return res
 	} else if right.Type() == object.FLOAT_OBJ {
-		return &object.Float{Value: -(right.(*object.Float).Value)}
+		res := &object.Float{Value: -(right.(*object.Float).Value)}
+		res.AddDependency(right)
+		return res
 	}
 	return newError("unknown operator: -%s", right.Type())
 
@@ -362,23 +450,28 @@ func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 
 func nativeBoolToBooleanObject(input bool) *object.Boolean {
 	if input {
-		return object.TRUE
+		return (object.TRUE.Copy()).(*object.Boolean)
 	}
-	return object.FALSE
+	return (object.FALSE.Copy()).(*object.Boolean)
 }
 
 func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Object {
-	condition := Eval(ie.Condition, env)
+	condition := Eval(ie.Condition, env).Copy()
 	if isError(condition) {
 		return condition
 	}
-
 	if object.Bool(condition) {
-		return Eval(ie.Consequence, env)
+		res := Eval(ie.Consequence, env).Copy()
+		res.AddDependency(condition)
+		return res
 	} else if ie.Alternative != nil {
-		return Eval(ie.Alternative, env)
+		res := Eval(ie.Alternative, env).Copy()
+		res.AddDependency(condition)
+		return res
 	} else {
-		return object.NIL
+		res := object.NIL.Copy()
+		res.AddDependency(condition)
+		return res
 	}
 }
 
@@ -423,7 +516,13 @@ func evalExpressions(
 func evalIndexExpression(left, index object.Object) object.Object {
 	switch {
 	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
-		return evalArrayIndexExpression(left, index)
+		res := evalArrayIndexExpression(left, index)
+		res.AddDependency(index)
+		res.AddDependency(&left.(*object.Array).Offset)
+		if arrRes, ok := res.(*object.Array); ok {
+			arrRes.AddOffsetDependency(&left.(*object.Array).Offset)
+		}
+		return res
 	case left.Type() == object.HASH_OBJ:
 		return evalHashIndexExpression(left, index)
 	default:
@@ -438,10 +537,32 @@ func evalArrayIndexExpression(array, index object.Object) object.Object {
 
 	// Out of bounds
 	if idx < 0 || idx > max {
-		return object.NIL
+		res := object.NIL.Copy()
+		res.AddDependency(index)
+		return res
 	}
 
-	return arrayObject.Elements[idx]
+	res := arrayObject.Elements[idx].Copy()
+	res.AddDependency(index)
+	return res
+}
+
+func applyPureFunction(fn *object.PureFunction, args []object.Object) object.Object {
+	if len(fn.Parameters) != len(args) {
+		return newError("Supplied %v args, but %v are expected", len(args), len(fn.Parameters))
+	}
+
+	extendedEnv := extendPureFunctionEnv(fn, args)
+	var res object.Object
+	// TODO (Peter) should we cache errors?
+	if val, ok := fn.Get(args); ok {
+		res = val
+	} else {
+		// this code might be a little inconsistent w.r.t errors?
+		res = unwrapReturnValue(Eval(fn.Body, extendedEnv))
+		fn.Set(args, res)
+	}
+	return res
 }
 
 func evalHashIndexExpression(hash, index object.Object) object.Object {
@@ -452,9 +573,13 @@ func evalHashIndexExpression(hash, index object.Object) object.Object {
 	}
 	pair, ok := hashObject.Pairs[key.HashKey()]
 	if !ok {
-		return object.NIL
+		res := object.NIL.Copy()
+		res.AddDependency(index)
+		return res
 	}
-	return pair.Value
+	res := pair.Value.Copy()
+	res.AddDependency(index)
+	return res
 }
 
 func applyFunction(fn object.Object, args []object.Object) object.Object {
@@ -467,18 +592,8 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		evaluated := Eval(fn.Body, extendedEnv)
 		return unwrapReturnValue(evaluated)
 	case *object.PureFunction:
-		if len(fn.Parameters) != len(args) {
-			return newError("Supplied %v args, but %v are expected", len(args), len(fn.Parameters))
-		}
-		extendedEnv := extendPureFunctionEnv(fn, args)
-		var evaluated object.Object
-		if val, ok := fn.Get(args); ok {
-			evaluated = val
-		} else {
-			evaluated = Eval(fn.Body, extendedEnv)
-			fn.Set(args, evaluated)
-		}
-		return unwrapReturnValue(evaluated)
+		res := applyPureFunction(fn, args)
+		return res
 	case *object.Builtin:
 		return fn.Fn(args...)
 	default:
@@ -542,5 +657,5 @@ func evalHashLiteral(
 		hashed := hashKey.HashKey()
 		pairs[hashed] = object.HashPair{Key: key, Value: value}
 	}
-	return &object.Hash{Pairs: pairs}
+	return object.CreateHash(pairs)
 }
