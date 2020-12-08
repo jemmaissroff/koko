@@ -56,8 +56,8 @@ func BenchmarkMergeSort(b *testing.B) {
 	program, env := testBuild(fmt.Sprintf(`
 	let get_n_elements = fn(arr, offset, number_of_elements) { if (number_of_elements == 0) { [] } else { [arr[offset]] + get_n_elements(arr, offset + 1, number_of_elements - 1) } }
 
-	let car = fn(a) { a[0] }
-	let cdr = fn(a) { get_n_elements(a, 1, len(a) - 1) }
+	let first = fn(a) { a[0] }
+	let last = fn(a) { get_n_elements(a, 1, len(a) - 1) }
 
 	let merge_elements = fn(res_lower, res_upper) {
 		 if (len(res_lower) == 0) {
@@ -70,10 +70,10 @@ func BenchmarkMergeSort(b *testing.B) {
 			if (len(res_upper) == 0) {
 				res_lower
 			} else {
-				if (car(res_upper) < car(res_lower)) {
-					[car(res_upper)] + merge_elements(res_lower, cdr(res_upper))
+				if (first(res_upper) < first(res_lower)) {
+					[first(res_upper)] + merge_elements(res_lower, last(res_upper))
 				} else {
-					[car(res_lower)] + merge_elements(res_upper, cdr(res_lower))
+					[first(res_lower)] + merge_elements(res_upper, last(res_lower))
 				}
 			}
 		}

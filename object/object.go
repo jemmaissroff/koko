@@ -12,18 +12,19 @@ import (
 type ObjectType string
 
 const (
-	BOOLEAN_OBJ  = "BOOLEAN"
-	FLOAT_OBJ    = "FLOAT"
-	INTEGER_OBJ  = "INTEGER"
-	NIL_OBJ      = "NIL"
-	RETURN_OBJ   = "RETURN"
-	STRING_OBJ   = "STRING"
-	ERROR_OBJ    = "ERROR"
-	FUNCTION_OBJ = "FUNCTION"
-	BUILTIN_OBJ  = "BUILTIN"
-	ARRAY_OBJ    = "ARRAY"
-	TRACE_OBJ    = "TRACE"
-	HASH_OBJ     = "HASH"
+	BOOLEAN_OBJ              = "BOOLEAN"
+	FLOAT_OBJ                = "FLOAT"
+	INTEGER_OBJ              = "INTEGER"
+	NIL_OBJ                  = "NIL"
+	RETURN_OBJ               = "RETURN"
+	STRING_OBJ               = "STRING"
+	ERROR_OBJ                = "ERROR"
+	FUNCTION_OBJ             = "FUNCTION"
+	BUILTIN_OBJ              = "BUILTIN"
+	ARRAY_OBJ                = "ARRAY"
+	TRACE_OBJ                = "TRACE"
+	HASH_OBJ                 = "HASH"
+	DEBUG_TRACE_METADATA_OBJ = "DEBUG_TRACE_METADATA"
 )
 
 var (
@@ -103,9 +104,6 @@ func (i *Integer) Equal(o Object) bool {
 }
 func (i *Integer) Falsey() Object { return ZERO_INTEGER }
 func (i *Integer) AddDependency(dep Object) {
-	if dep == nil {
-		panic("oh fuck lol")
-	}
 	i.Dependencies = append(i.Dependencies, dep)
 }
 func (i *Integer) GetDependencyLinks() []Object { return i.Dependencies }
@@ -451,6 +449,7 @@ type HashPair struct {
 type Hash struct {
 	Pairs        map[HashKey]HashPair
 	Length       Integer
+	Offset       Integer
 	Dependencies []Object
 }
 
@@ -495,12 +494,16 @@ func (h *Hash) Equal(o Object) bool {
 func (h *Hash) Falsey() Object { return EMPTY_HASH }
 
 func (h *Hash) Copy() Object {
-	return &Hash{Pairs: h.Pairs, Length: *h.Length.Copy().(*Integer), Dependencies: []Object{h}}
+	return &Hash{Pairs: h.Pairs, Length: *h.Length.Copy().(*Integer), Offset: *h.Offset.Copy().(*Integer), Dependencies: []Object{h}}
 }
 
-func (h *Hash) AddDependency(dep Object) { h.Dependencies = append(h.Dependencies, dep) }
+func (h *Hash) AddDependency(dep Object)       { h.Dependencies = append(h.Dependencies, dep) }
+func (h *Hash) AddLengthDependency(dep Object) { h.Length.AddDependency(dep) }
+func (h *Hash) AddOffsetDependency(dep Object) { h.Offset.AddDependency(dep) }
 
-func (h *Hash) GetDependencyLinks() []Object { return h.Dependencies }
+func (h *Hash) GetDependencyLinks() []Object {
+	return append(append([]Object{}, h.Dependencies...), &h.Offset, &h.Length)
+}
 
 type HashKey struct {
 	Type  ObjectType
@@ -518,7 +521,7 @@ type DebugTraceMetadata struct {
 
 // NOTE this object is techincal debt
 // TODO (Peter) remove this gracefully and replace with a better version
-func (d *DebugTraceMetadata) Type() ObjectType { return "DEBUGTRACEMETADATA" }
+func (d *DebugTraceMetadata) Type() ObjectType { return DEBUG_TRACE_METADATA_OBJ }
 func (d *DebugTraceMetadata) Inspect() string  { return fmt.Sprintf("%+v\n", d.DebugMetadata) }
 func (d *DebugTraceMetadata) String() String   { return String{Value: d.Inspect()} }
 func (d *DebugTraceMetadata) Copy() Object {

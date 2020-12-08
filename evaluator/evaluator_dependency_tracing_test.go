@@ -190,6 +190,18 @@ func TestDependencyTrackingHashConcat(t *testing.T) {
 	assertObjectDepsEqual(t, res, []string{"0#", "1#"})
 }
 
+func TestOffsetDependenciesInSubHashTablesSimple(t *testing.T) {
+	program := "let f = fn(a, b) { (a + b)[3][\"steve\"] }; deps(f, [1, 2, 3], [{\"steve\":6}])"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"1|0|@steve", "0#"})
+}
+
+func TestOffsetDependenciesInSubHashTables(t *testing.T) {
+	program := "let f = fn(a, b) { (a + b)[3][\"steve\"][1] }; deps(f, [1, 2, 3], [{4:1, 5:2, \"steve\":[6, 7]}])"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"1|0|@steve|1", "0#"})
+}
+
 /*
 * TESTING BUILTINS HERE
  */
@@ -238,8 +250,8 @@ func TestMergeSortOnInts(t *testing.T) {
 		mergeSortProgram := fmt.Sprintf(`
 		let get_n_elements = fn(arr, offset, number_of_elements) { if (number_of_elements == 0) { [] } else { [arr[offset]] + get_n_elements(arr, offset + 1, number_of_elements - 1) } }
 
-		let car = fn(a) { a[0] }
-		let cdr = fn(a) { get_n_elements(a, 1, len(a) - 1) }
+		let first = fn(a) { a[0] }
+		let last = fn(a) { get_n_elements(a, 1, len(a) - 1) }
 
 		let merge_elements = fn(res_lower, res_upper) {
 			 if (len(res_lower) == 0) {
@@ -252,10 +264,10 @@ func TestMergeSortOnInts(t *testing.T) {
 				if (len(res_upper) == 0) {
 					res_lower
 				} else {
-					if (car(res_upper) < car(res_lower)) {
-						[car(res_upper)] + merge_elements(res_lower, cdr(res_upper))
+					if (first(res_upper) < first(res_lower)) {
+						[first(res_upper)] + merge_elements(res_lower, last(res_upper))
 					} else {
-						[car(res_lower)] + merge_elements(res_upper, cdr(res_lower))
+						[first(res_lower)] + merge_elements(res_upper, last(res_lower))
 					}
 				}
 			}
@@ -265,10 +277,6 @@ func TestMergeSortOnInts(t *testing.T) {
 		merge_sort(%s)
 		`, strInput)
 
-		// let merge_sort = fn(arr) { if (len(arr) < 2) { return arr } else { let half = int(len(arr)/2); let res_lower = get_n_elements(arr, 0, half); let res_upper = get_n_elements(arr, half, len(arr) - half); merge_elements(merge_sort(res_lower), merge_sort(res_upper)) } }
-		//merge_elements(merge_sort(res_lower), merge_sort(res_upper))
-
-		//runtime.Breakpoint()
 		outList := testEval(mergeSortProgram)
 		outStr := "["
 		expectedStr := "["

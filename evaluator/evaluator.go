@@ -368,6 +368,9 @@ func addElements(left *object.Array, right *object.Array) *object.Array {
 		if elArr, ok := elCopy.(*object.Array); ok {
 			elArr.AddOffsetDependency(&left.Length)
 		}
+		if elHash, ok := elCopy.(*object.Hash); ok {
+			elHash.AddOffsetDependency(&left.Length)
+		}
 		res.AddDependency(elCopy)
 		elements = append(elements, elCopy)
 	}
@@ -518,9 +521,13 @@ func evalIndexExpression(left, index object.Object) object.Object {
 	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
 		res := evalArrayIndexExpression(left, index)
 		res.AddDependency(index)
+		// propegate dependencies
 		res.AddDependency(&left.(*object.Array).Offset)
 		if arrRes, ok := res.(*object.Array); ok {
 			arrRes.AddOffsetDependency(&left.(*object.Array).Offset)
+		}
+		if hashRes, ok := res.(*object.Hash); ok {
+			hashRes.AddOffsetDependency(&left.(*object.Array).Offset)
 		}
 		return res
 	case left.Type() == object.HASH_OBJ:
@@ -575,10 +582,19 @@ func evalHashIndexExpression(hash, index object.Object) object.Object {
 	if !ok {
 		res := object.NIL.Copy()
 		res.AddDependency(index)
+		res.AddDependency(&hash.(*object.Hash).Offset)
 		return res
 	}
 	res := pair.Value.Copy()
 	res.AddDependency(index)
+	// propegate offset dependencies
+	if arrRes, ok := res.(*object.Array); ok {
+		arrRes.AddOffsetDependency(&hash.(*object.Hash).Offset)
+	}
+	if hashRes, ok := res.(*object.Hash); ok {
+		hashRes.AddOffsetDependency(&hash.(*object.Hash).Offset)
+	}
+	res.AddDependency(&hash.(*object.Hash).Offset)
 	return res
 }
 
