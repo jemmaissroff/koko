@@ -374,7 +374,7 @@ func (a *Array) AddOffsetDependency(dep Object) {
 }
 
 func (a *Array) GetDependencyLinks() []Object {
-	return append(append([]Object{}, a.Dependencies...), &a.Offset, &a.Length)
+	return append(append([]Object{}, a.Dependencies...), &a.Length)
 }
 
 type PureFunction struct {
@@ -502,7 +502,7 @@ func (h *Hash) AddLengthDependency(dep Object) { h.Length.AddDependency(dep) }
 func (h *Hash) AddOffsetDependency(dep Object) { h.Offset.AddDependency(dep) }
 
 func (h *Hash) GetDependencyLinks() []Object {
-	return append(append([]Object{}, h.Dependencies...), &h.Offset, &h.Length)
+	return append(append([]Object{}, h.Dependencies...), &h.Length)
 }
 
 type HashKey struct {

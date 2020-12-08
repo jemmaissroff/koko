@@ -26,12 +26,6 @@ func strEquals(t *testing.T, testStr string, truthStr string) {
 	}
 }
 
-/*func assertProgramDidNotError(t *testing.T, res object.Object) object.Object {
-	if ok, _ := res.(object.Error); ok {
-
-	}
-}*/
-
 func assertObjectDepsEqual(t *testing.T, res object.Object, expectedDeps []string) {
 	debugTraceObj, ok := res.(*object.DebugTraceMetadata)
 	if !ok {
