@@ -7,10 +7,12 @@ type Lexer struct {
 	position     int  // current position in input (points to current char)
 	readPosition int  // current reading position in input (after current char)
 	ch           byte // current char under examination
+	lineNumber   int
+	filename     string
 }
 
-func New(input string) *Lexer {
-	l := &Lexer{input: input}
+func New(input string, filename string) *Lexer {
+	l := &Lexer{input: input, filename: filename, lineNumber: 1}
 	l.readChar()
 	return l
 }
@@ -24,13 +26,14 @@ func (l *Lexer) readChar() {
 
 	l.position = l.readPosition
 	l.readPosition += 1
-
 }
 
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
 	l.skipWhitespace()
+
+	tok.Context = token.ContextData{LineNumber: l.lineNumber, File: l.filename}
 
 	switch l.ch {
 	case '=':
@@ -178,6 +181,9 @@ func newToken(tokenType token.TokenType, ch byte) token.Token {
 
 func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		if l.ch == '\n' {
+			l.lineNumber += 1
+		}
 		l.readChar()
 	}
 }
