@@ -644,7 +644,10 @@ func extendPureFunctionEnv(
 
 func unwrapReturnValue(obj object.Object) object.Object {
 	if returnValue, ok := obj.(*object.Return); ok {
-		return returnValue.Value
+		// TODO Peter this graph is a little over complex
+		res := returnValue.Value.Copy()
+		res.AddDependency(obj)
+		return res
 	}
 
 	return obj

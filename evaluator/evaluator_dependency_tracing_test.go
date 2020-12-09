@@ -80,6 +80,15 @@ func TestDependencyTrackingInBasicFunctionWithConditional(t *testing.T) {
 	assertObjectDepsEqual(t, res, []string{"0", "2"})
 }
 
+func TestDependencyTrackingInBasicFunctionWithConditionalWithReturn(t *testing.T) {
+	program := "let f = fn(a, b, c) { if (a > 0) { return b } else { return c } }; deps(f, 1, 2, 0)"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0", "1"})
+	program = "let f = fn(a, b, c) { if (a > 0) { return b } else { return c } }; deps(f, -1, 2, 0)"
+	res = testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0", "2"})
+}
+
 func TestDependencyTrackingInSubFunctions(t *testing.T) {
 	program := "let g = fn(a, b) { b }; let f = fn(a, b, c) { g(c, a) }; deps(f, 1, 2, 3)"
 	res := testEval(program)
