@@ -93,6 +93,23 @@ func init() {
 				return &res
 			},
 		},
+		"dep_diagraph": {
+			// NOTE this function is legacy to support tests from the old version
+			// TODO (Peter) update this to a better version later
+			Fn: func(args ...object.Object) object.Object {
+				if len(args) != 1 {
+					return newError("wrong number of arguments. got=%d, need 1",
+						len(args))
+				}
+
+				arg := args[0]
+
+				res := object.String{Value: object.GetAllDependenciesToDotLang(arg)}
+				res.AddDependency(arg)
+
+				return &res
+			},
+		},
 		"len": &object.Builtin{
 			Fn: func(args ...object.Object) object.Object {
 				if err := validateNumberOfArgs(1, args); err != object.NIL {
