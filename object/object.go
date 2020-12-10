@@ -76,8 +76,8 @@ func GetAllDependenciesToDotLang(result Object) string {
 				// they are condensed in this representation
 				continue
 			}
-			headNode := head.GetCreatorNode().String()
-			linkNode := link.GetCreatorNode().String()
+			headNode := fmt.Sprintf("%s (l:%d)", head.GetCreatorNode().String(), head.GetCreatorNode().Span().BeginLine)
+			linkNode := fmt.Sprintf("%s (l:%d)", link.GetCreatorNode().String(), link.GetCreatorNode().Span().BeginLine)
 			out = out + fmt.Sprintf("\t\"%s\" -> \"%s\";\n", linkNode, headNode)
 		}
 		if len(queue) > 1 {
@@ -149,7 +149,7 @@ func (i *Integer) Equal(o Object) bool {
 	comp, ok := o.(*Integer)
 	return ok && comp.Value == i.Value
 }
-func (i *Integer) Falsey() Object { return ZERO_INTEGER }
+func (i *Integer) Falsey() Object { return ZERO_INTEGER.Copy() }
 func (i *Integer) AddDependency(dep Object) {
 	i.Dependencies = append(i.Dependencies, dep)
 }
