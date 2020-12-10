@@ -71,6 +71,33 @@ let reverse = fn(arr) {
   reverse(rest(arr)) + [first(arr)]
 }
 
+let char_split = fn(arr, char) {
+  let _char_split = fn(arr, char, tracking) {
+    if (len(arr) == 0) { return [tracking] }
+    let f = first(arr)
+    if (f == char) {
+      [tracking] + _char_split(rest(arr), char, [])
+    } else {
+      _char_split(rest(arr), char, tracking + [f])
+    }
+  }
+
+  _char_split(arr, char, [])
+}
+
+
+let count_split = fn(arr, count) {
+  let _count_split = fn(arr, counter, max, tracking) {
+    if (len(arr) == 0) { return [tracking] }
+    if (counter == max) {
+      [tracking] + _count_split(rest(arr), 0, max, [])
+    } else {
+      _count_split(rest(arr), counter + 1, max, tracking + [first(arr)])
+    }
+  }
+  _count_split(arr, 0, count, [])
+}
+
 // TODO: Add to builtins
 let throw = fn(err) {
   "KOKO WENT NUTS: " + err

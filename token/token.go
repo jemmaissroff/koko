@@ -1,10 +1,29 @@
 package token
 
+import (
+	"bytes"
+	"strconv"
+)
+
 type TokenType string
 
 type Token struct {
 	Type    TokenType
 	Literal string
+	Context ContextData
+}
+
+type ContextData struct {
+	LineNumber int
+	File       string
+}
+
+func (c ContextData) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(c.File + " line " + strconv.Itoa(c.LineNumber))
+
+	return out.String()
 }
 
 const (
