@@ -8,7 +8,7 @@ import (
 )
 
 func testEval(input string) object.Object {
-	l := lexer.New(input)
+	l := lexer.New(input, "test_file.koko")
 	p := parser.New(l)
 	program := p.ParseProgram()
 	env := object.NewEnvironment()

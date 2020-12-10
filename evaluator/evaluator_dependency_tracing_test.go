@@ -12,7 +12,7 @@ import (
 )
 
 func testEvalAndGetDeps(input string, fname string) object.Object {
-	l := lexer.New(input)
+	l := lexer.New(input, fname)
 	p := parser.New(l)
 	program := p.ParseProgram()
 	env := object.NewEnvironment()
