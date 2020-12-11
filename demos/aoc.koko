@@ -28,3 +28,13 @@ let binary_to_int = fn(arr, mult) {
 }
 
 let seat_ids = map(input_arr, get_seat_id)
+
+let max = fn(arr) {
+ let _max = fn(x,y) {
+   if (x < y) { y } else { x }
+ }
+
+ if (len(arr) != 0) {
+   reduce(arr, _max, first(arr))
+ }
+}
