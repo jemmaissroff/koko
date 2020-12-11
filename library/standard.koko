@@ -66,6 +66,11 @@ let map = fn(arr, fun) {
   }
 }
 
+let reduce = fn(arr, fun, inc) {
+  if (len(arr) == 0) { return inc };
+  reduce(rest(arr), fun, fun(inc, first(arr)))
+}
+
 let reverse = fn(arr) {
   if (len(arr) == 0) { return [] };
   reverse(rest(arr)) + [first(arr)]
