@@ -1,0 +1,39 @@
+import "library/standard.koko"
+
+let input_arr = [
+  "BFFFBBFRRR",
+  "FFFBBBFRRR",
+  "BBFFBBFRLL"
+]
+
+let get_seat_id = fn(input) {
+  let i_arr = array(input)
+  let row = take(i_arr, 7)
+  let row_num = binary("B", row)
+
+  let seat = drop(i_arr, 7)
+  let seat_num = binary("R", seat)
+
+  row_num * 8 + seat_num
+}
+
+let binary = fn(char, arr) {
+  binary_to_int(map(arr, fn(i) { int(i == char) }), 1)
+}
+
+let binary_to_int = fn(arr, mult) {
+  if (arr == []) { 0 } else {
+    mult * last(arr) + binary_to_int(take(arr, len(arr) - 1), mult * 2)
+  }
+}
+
+let seat_ids = map(input_arr, get_seat_id)
+
+let max = fn(arr) {
+  let _max = fn(x, y) {
+    if (x < y) { y } else { x }
+  }
+  if (len(arr) == 0) { nil } else {
+    reduce(arr, _max, first(arr))
+  }
+}

@@ -191,7 +191,7 @@ func init() {
 					res.AddDependency(arg)
 					return res
 				case *object.Boolean:
-					if arg == object.TRUE {
+					if arg.Equal(object.TRUE) {
 						res := &object.Integer{Value: 1}
 						res.AddDependency(arg)
 						return res

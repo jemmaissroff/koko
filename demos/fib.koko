@@ -1,0 +1,15 @@
+let fib = fn(x) {
+  if (x == 0) { 0 } else {
+    if (x == 1) { 1 } else {
+      fib(x - 1) + fib(x - 2)
+    }
+  }
+}
+
+let pure_fib = pfn(x) {
+  if (x == 0) { 0 } else {
+    if (x == 1) { 1 } else {
+      pure_fib(x - 1) + pure_fib(x - 2)
+    }
+  }
+}
