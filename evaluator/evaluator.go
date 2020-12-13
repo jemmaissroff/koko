@@ -680,7 +680,6 @@ func unwrapReturnValue(obj object.Object) object.Object {
 		res.AddDependency(obj)
 		return res
 	}
-
 	return obj
 }
 

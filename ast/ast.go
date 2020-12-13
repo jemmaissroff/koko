@@ -2,7 +2,6 @@ package ast
 
 import (
 	"bytes"
-	"fmt"
 	"koko/token"
 	"strings"
 )
@@ -16,7 +15,6 @@ type Span struct {
 }
 
 func spanFromToken(t token.Token) Span {
-	fmt.Printf("Begin Line for token %s, is %d\n", t.Literal, t.Context.LineNumber)
 	return Span{BeginLine: t.Context.LineNumber}
 }
 
@@ -53,6 +51,21 @@ type Statement interface {
 type Expression interface {
 	Node
 	expressionNode()
+}
+
+type BuiltinValue struct {
+}
+
+func (b *BuiltinValue) TokenLiteral() string {
+	return ""
+}
+
+func (b *BuiltinValue) String() string {
+	return ""
+}
+
+func (b *BuiltinValue) Span() Span {
+	return EMPTY_SPAN
 }
 
 type Program struct {
@@ -181,9 +194,11 @@ func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
 func (bs *BlockStatement) String() string {
 	var out bytes.Buffer
 
+	out.WriteString(token.LBRACE + " ")
 	for _, s := range bs.Statements {
 		out.WriteString(s.String())
 	}
+	out.WriteString(" " + token.RBRACE)
 
 	return out.String()
 }
@@ -370,7 +385,9 @@ func (ie *IfExpression) Span() Span {
 	out := spanFromToken(ie.Token)
 	out = out.merge(ie.Condition.Span())
 	out = out.merge(ie.Consequence.Span())
-	out = out.merge(ie.Alternative.Span())
+	if ie.Alternative != nil {
+		out = out.merge(ie.Alternative.Span())
+	}
 	return out
 }
 

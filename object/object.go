@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"koko/ast"
-	"koko/token"
 	"strconv"
 	"strings"
 )
@@ -29,16 +28,16 @@ const (
 )
 
 var (
-	NIL = &Nil{}
+	NIL = &Nil{ASTCreator: &ast.BuiltinValue{}}
 
-	TRUE  = &Boolean{Value: true, ASTCreator: &ast.Boolean{Token: token.Token{Type: token.TRUE, Literal: token.TRUE}}}
-	FALSE = &Boolean{Value: false, ASTCreator: &ast.Boolean{Token: token.Token{Type: token.FALSE, Literal: token.FALSE}}}
+	TRUE  = &Boolean{Value: true, ASTCreator: &ast.BuiltinValue{}}
+	FALSE = &Boolean{Value: false, ASTCreator: &ast.BuiltinValue{}}
 
-	EMPTY_STRING = &String{Value: "", ASTCreator: &ast.StringLiteral{Token: token.Token{Type: token.STRING, Literal: ""}}}
-	ZERO_INTEGER = &Integer{Value: 0}
-	ZERO_FLOAT   = &Float{Value: 0}
-	EMPTY_ARRAY  = &Array{Elements: []Object{}}
-	EMPTY_HASH   = &Hash{Pairs: make(map[HashKey]HashPair)}
+	EMPTY_STRING = &String{Value: "", ASTCreator: &ast.BuiltinValue{}}
+	ZERO_INTEGER = &Integer{Value: 0, ASTCreator: &ast.BuiltinValue{}}
+	ZERO_FLOAT   = &Float{Value: 0, ASTCreator: &ast.BuiltinValue{}}
+	EMPTY_ARRAY  = &Array{Elements: []Object{}, ASTCreator: &ast.BuiltinValue{}}
+	EMPTY_HASH   = &Hash{Pairs: make(map[HashKey]HashPair), ASTCreator: &ast.BuiltinValue{}}
 )
 
 func copyDependencies(deps []Object) []Object {
@@ -49,41 +48,52 @@ func copyDependencies(deps []Object) []Object {
 
 // TODO (Peter) come up with a better place to put this
 func GetAllDependenciesToDotLang(result Object) string {
-	seen := make(map[Object]bool)
+	seenNodes := make(map[Object]bool)
 	queue := []Object{}
 	queue = append(queue, result)
 	out := "digraph G {\n"
+	seenOutputEdges := make(map[string]bool)
 	for len(queue) > 0 {
 		head := queue[0]
-		/*if seen[head] {
+		fmt.Printf("HEAD: %+v\n", head)
+		if seenNodes[head] {
 			if len(queue) > 1 {
 				queue = queue[1:]
 			} else {
 				queue = []Object{}
 			}
 			continue
-		}*/
-		seen[head] = true
-		for _, link := range head.GetDependencyLinks() {
+		}
+		seenNodes[head] = true
+		for link := range head.GetDependencyLinks() {
 			if head.GetCreatorNode() == nil {
 				panic(fmt.Sprintf("Graph construction failed %+v\n", head))
 			}
 			if link.GetCreatorNode() == nil {
 				panic(fmt.Sprintf("Graph construction failed %+v\n", link))
 			}
-			if head.GetCreatorNode() == link.GetCreatorNode() {
+			if head.GetCreatorNode().String() == link.GetCreatorNode().String() {
 				// copied dependencies look like the node points to itself
 				// they are condensed in this representation
 				continue
 			}
 			headNode := fmt.Sprintf("%s (l:%d)", head.GetCreatorNode().String(), head.GetCreatorNode().Span().BeginLine)
 			linkNode := fmt.Sprintf("%s (l:%d)", link.GetCreatorNode().String(), link.GetCreatorNode().Span().BeginLine)
-			out = out + fmt.Sprintf("\t\"%s\" -> \"%s\";\n", linkNode, headNode)
+			edge := fmt.Sprintf("\t\"%s\" -> \"%s\";\n", linkNode, headNode)
+			if _, ok := seenOutputEdges[edge]; !ok {
+				seenOutputEdges[edge] = true
+				out += edge
+			}
 		}
 		if len(queue) > 1 {
-			queue = append(queue[1:], head.GetDependencyLinks()...)
+			queue = queue[1:]
+			for link := range head.GetDependencyLinks() {
+				queue = append(queue, link)
+			}
 		} else {
-			queue = head.GetDependencyLinks()
+			for link := range head.GetDependencyLinks() {
+				queue = append(queue, link)
+			}
 		}
 	}
 	out += "}"
@@ -106,9 +116,14 @@ func GetAllDependencies(result Object) map[Object]bool {
 		}
 		out[head] = true
 		if len(queue) > 1 {
-			queue = append(queue[1:], head.GetDependencyLinks()...)
+			queue = queue[1:]
+			for link := range head.GetDependencyLinks() {
+				queue = append(queue, link)
+			}
 		} else {
-			queue = head.GetDependencyLinks()
+			for link := range head.GetDependencyLinks() {
+				queue = append(queue, link)
+			}
 		}
 	}
 	return out
@@ -122,7 +137,7 @@ type Object interface {
 	Equal(o Object) bool
 	Falsey() Object
 	AddDependency(dep Object)
-	GetDependencyLinks() []Object
+	GetDependencyLinks() map[Object]bool
 	GetCreatorNode() ast.Node
 	SetCreatorNode(node ast.Node)
 }
@@ -131,7 +146,7 @@ func Bool(o Object) bool { return !o.Equal(o.Falsey()) }
 
 type Integer struct {
 	Value        int64
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
@@ -140,7 +155,7 @@ func (i *Integer) Type() ObjectType { return INTEGER_OBJ }
 func (i *Integer) String() String   { return String{Value: i.Inspect()} }
 func (i *Integer) Float() Float     { return Float{Value: float64(i.Value)} }
 func (i *Integer) Copy() Object {
-	return &Integer{Value: i.Value, Dependencies: []Object{i}, ASTCreator: i.ASTCreator}
+	return &Integer{Value: i.Value, Dependencies: map[Object]bool{i: true}, ASTCreator: i.ASTCreator}
 }
 func (i *Integer) HashKey() HashKey {
 	return HashKey{Type: i.Type(), Value: float64(i.Value)}
@@ -151,15 +166,18 @@ func (i *Integer) Equal(o Object) bool {
 }
 func (i *Integer) Falsey() Object { return ZERO_INTEGER.Copy() }
 func (i *Integer) AddDependency(dep Object) {
-	i.Dependencies = append(i.Dependencies, dep)
+	if i.Dependencies == nil {
+		i.Dependencies = make(map[Object]bool)
+	}
+	i.Dependencies[dep] = true
 }
-func (i *Integer) GetDependencyLinks() []Object { return i.Dependencies }
-func (i *Integer) GetCreatorNode() ast.Node     { return i.ASTCreator }
-func (i *Integer) SetCreatorNode(node ast.Node) { i.ASTCreator = node }
+func (i *Integer) GetDependencyLinks() map[Object]bool { return i.Dependencies }
+func (i *Integer) GetCreatorNode() ast.Node            { return i.ASTCreator }
+func (i *Integer) SetCreatorNode(node ast.Node)        { i.ASTCreator = node }
 
 type Float struct {
 	Value        float64
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
@@ -172,7 +190,7 @@ func (f *Float) Inspect() string {
 func (f *Float) Type() ObjectType { return FLOAT_OBJ }
 func (f *Float) String() String   { return String{Value: f.Inspect()} }
 func (f *Float) Copy() Object {
-	return &Float{Value: f.Value, Dependencies: []Object{f}, ASTCreator: f.ASTCreator}
+	return &Float{Value: f.Value, Dependencies: map[Object]bool{f: true}, ASTCreator: f.ASTCreator}
 }
 func (f *Float) HashKey() HashKey {
 	return HashKey{Type: f.Type(), Value: f.Value}
@@ -183,14 +201,19 @@ func (f *Float) Equal(o Object) bool {
 }
 func (f *Float) Falsey() Object { return ZERO_FLOAT.Copy() }
 
-func (f *Float) AddDependency(dep Object)     { f.Dependencies = append(f.Dependencies, dep) }
-func (f *Float) GetDependencyLinks() []Object { return f.Dependencies }
-func (f *Float) GetCreatorNode() ast.Node     { return f.ASTCreator }
-func (f *Float) SetCreatorNode(node ast.Node) { f.ASTCreator = node }
+func (f *Float) AddDependency(dep Object) {
+	if f.Dependencies == nil {
+		f.Dependencies = make(map[Object]bool)
+	}
+	f.Dependencies[dep] = true
+}
+func (f *Float) GetDependencyLinks() map[Object]bool { return f.Dependencies }
+func (f *Float) GetCreatorNode() ast.Node            { return f.ASTCreator }
+func (f *Float) SetCreatorNode(node ast.Node)        { f.ASTCreator = node }
 
 type Boolean struct {
 	Value        bool
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
@@ -198,7 +221,7 @@ func (b *Boolean) Type() ObjectType { return BOOLEAN_OBJ }
 func (b *Boolean) Inspect() string  { return fmt.Sprintf("%t", b.Value) }
 func (b *Boolean) String() String   { return String{Value: b.Inspect()} }
 func (b *Boolean) Copy() Object {
-	return &Boolean{Value: b.Value, Dependencies: []Object{b}, ASTCreator: b.ASTCreator}
+	return &Boolean{Value: b.Value, Dependencies: map[Object]bool{b: true}, ASTCreator: b.ASTCreator}
 }
 func (b *Boolean) HashKey() HashKey {
 	var value float64
@@ -215,14 +238,19 @@ func (b *Boolean) Equal(o Object) bool {
 }
 func (b *Boolean) Falsey() Object { return FALSE.Copy() }
 
-func (b *Boolean) AddDependency(dep Object)     { b.Dependencies = append(b.Dependencies, dep) }
-func (b *Boolean) GetDependencyLinks() []Object { return b.Dependencies }
-func (b *Boolean) GetCreatorNode() ast.Node     { return b.ASTCreator }
-func (b *Boolean) SetCreatorNode(node ast.Node) { b.ASTCreator = node }
+func (b *Boolean) AddDependency(dep Object) {
+	if b.Dependencies == nil {
+		b.Dependencies = make(map[Object]bool)
+	}
+	b.Dependencies[dep] = true
+}
+func (b *Boolean) GetDependencyLinks() map[Object]bool { return b.Dependencies }
+func (b *Boolean) GetCreatorNode() ast.Node            { return b.ASTCreator }
+func (b *Boolean) SetCreatorNode(node ast.Node)        { b.ASTCreator = node }
 
 type String struct {
 	Value        string
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
@@ -230,7 +258,7 @@ func (s *String) Type() ObjectType { return STRING_OBJ }
 func (s *String) Inspect() string  { return s.Value }
 func (s *String) String() String   { return *s }
 func (s *String) Copy() Object {
-	return &String{Value: s.Value, Dependencies: []Object{s}, ASTCreator: s.ASTCreator}
+	return &String{Value: s.Value, Dependencies: map[Object]bool{s: true}, ASTCreator: s.ASTCreator}
 }
 func (s *String) Equal(o Object) bool {
 	comp, ok := o.(*String)
@@ -245,14 +273,19 @@ func (s *String) HashKey() HashKey {
 	return HashKey{Type: s.Type(), Value: float64(h.Sum64())}
 }
 
-func (s *String) AddDependency(dep Object)     { s.Dependencies = append(s.Dependencies, dep) }
-func (s *String) GetDependencyLinks() []Object { return s.Dependencies }
-func (s *String) GetCreatorNode() ast.Node     { return s.ASTCreator }
-func (s *String) SetCreatorNode(node ast.Node) { s.ASTCreator = node }
+func (s *String) AddDependency(dep Object) {
+	if s.Dependencies == nil {
+		s.Dependencies = make(map[Object]bool)
+	}
+	s.Dependencies[dep] = true
+}
+func (s *String) GetDependencyLinks() map[Object]bool { return s.Dependencies }
+func (s *String) GetCreatorNode() ast.Node            { return s.ASTCreator }
+func (s *String) SetCreatorNode(node ast.Node)        { s.ASTCreator = node }
 
 type Return struct {
 	Value        Object
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
@@ -260,7 +293,7 @@ func (r *Return) Type() ObjectType { return RETURN_OBJ }
 func (r *Return) Inspect() string  { return fmt.Sprintf("%v", r.Value.Inspect()) }
 func (r *Return) String() String   { return String{Value: r.Inspect()} }
 func (r *Return) Copy() Object {
-	return &Return{Value: r.Value, Dependencies: []Object{r}, ASTCreator: r.ASTCreator}
+	return &Return{Value: r.Value, Dependencies: map[Object]bool{r: true}, ASTCreator: r.ASTCreator}
 }
 func (r *Return) Equal(o Object) bool {
 	comp, ok := o.(*Return)
@@ -268,34 +301,46 @@ func (r *Return) Equal(o Object) bool {
 }
 func (r *Return) Falsey() Object { return NIL.Copy() }
 
-func (r *Return) AddDependency(dep Object)     { r.Dependencies = append(r.Dependencies, dep) }
-func (r *Return) GetDependencyLinks() []Object { return r.Dependencies }
-func (r *Return) GetCreatorNode() ast.Node     { return r.ASTCreator }
-func (r *Return) SetCreatorNode(node ast.Node) { r.ASTCreator = node }
+func (r *Return) AddDependency(dep Object) {
+	if r.Dependencies == nil {
+		r.Dependencies = make(map[Object]bool)
+	}
+	r.Dependencies[dep] = true
+}
+func (r *Return) GetDependencyLinks() map[Object]bool { return r.Dependencies }
+func (r *Return) GetCreatorNode() ast.Node            { return r.ASTCreator }
+func (r *Return) SetCreatorNode(node ast.Node)        { r.ASTCreator = node }
 
 type Nil struct {
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
 func (n *Nil) Type() ObjectType { return NIL_OBJ }
 func (n *Nil) Inspect() string  { return "nil" }
 func (n *Nil) String() String   { return String{Value: n.Inspect()} }
-func (n *Nil) Copy() Object     { return &Nil{Dependencies: []Object{n}, ASTCreator: n.ASTCreator} }
+func (n *Nil) Copy() Object {
+	return &Nil{Dependencies: map[Object]bool{n: true}, ASTCreator: n.ASTCreator}
+}
 func (n *Nil) Equal(o Object) bool {
 	_, ok := o.(*Nil)
 	return ok
 }
 func (n *Nil) Falsey() Object { return NIL.Copy() }
 
-func (n *Nil) AddDependency(dep Object)     { n.Dependencies = append(n.Dependencies, dep) }
-func (n *Nil) GetDependencyLinks() []Object { return n.Dependencies }
-func (n *Nil) GetCreatorNode() ast.Node     { return n.ASTCreator }
-func (n *Nil) SetCreatorNode(node ast.Node) { n.ASTCreator = node }
+func (n *Nil) AddDependency(dep Object) {
+	if n.Dependencies == nil {
+		n.Dependencies = make(map[Object]bool)
+	}
+	n.Dependencies[dep] = true
+}
+func (n *Nil) GetDependencyLinks() map[Object]bool { return n.Dependencies }
+func (n *Nil) GetCreatorNode() ast.Node            { return n.ASTCreator }
+func (n *Nil) SetCreatorNode(node ast.Node)        { n.ASTCreator = node }
 
 type Error struct {
 	Message      string
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
@@ -306,7 +351,7 @@ func (e *Error) Type() ObjectType { return ERROR_OBJ }
 func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
 func (e *Error) String() String   { return String{Value: e.Inspect()} }
 func (e *Error) Copy() Object {
-	return &Error{Message: e.Message, Dependencies: []Object{e}, ASTCreator: e.ASTCreator}
+	return &Error{Message: e.Message, Dependencies: map[Object]bool{e: true}, ASTCreator: e.ASTCreator}
 }
 func (e *Error) Equal(o Object) bool {
 	comp, ok := o.(*Error)
@@ -314,16 +359,21 @@ func (e *Error) Equal(o Object) bool {
 }
 func (e *Error) Falsey() Object { return NIL.Copy() }
 
-func (e *Error) AddDependency(dep Object)     { e.Dependencies = append(e.Dependencies, dep) }
-func (e *Error) GetDependencyLinks() []Object { return e.Dependencies }
-func (e *Error) GetCreatorNode() ast.Node     { return e.ASTCreator }
-func (e *Error) SetCreatorNode(node ast.Node) { e.ASTCreator = node }
+func (e *Error) AddDependency(dep Object) {
+	if e.Dependencies == nil {
+		e.Dependencies = make(map[Object]bool)
+	}
+	e.Dependencies[dep] = true
+}
+func (e *Error) GetDependencyLinks() map[Object]bool { return e.Dependencies }
+func (e *Error) GetCreatorNode() ast.Node            { return e.ASTCreator }
+func (e *Error) SetCreatorNode(node ast.Node)        { e.ASTCreator = node }
 
 type Function struct {
 	Parameters   []*ast.Identifier
 	Body         *ast.BlockStatement
 	Env          *Environment
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
@@ -347,7 +397,7 @@ func (f *Function) Inspect() string {
 }
 func (f *Function) String() String { return String{Value: f.Inspect()} }
 func (f *Function) Copy() Object {
-	return &Function{Parameters: f.Parameters, Body: f.Body, Env: f.Env, Dependencies: []Object{f}, ASTCreator: f.ASTCreator}
+	return &Function{Parameters: f.Parameters, Body: f.Body, Env: f.Env, Dependencies: map[Object]bool{f: true}, ASTCreator: f.ASTCreator}
 }
 
 // JEM: Could properly implement function comparison
@@ -357,16 +407,21 @@ func (f *Function) Equal(o Object) bool {
 }
 func (f *Function) Falsey() Object { return NIL.Copy() }
 
-func (f *Function) AddDependency(dep Object)     { f.Dependencies = append(f.Dependencies, dep) }
-func (f *Function) GetDependencyLinks() []Object { return f.Dependencies }
-func (f *Function) GetCreatorNode() ast.Node     { return f.ASTCreator }
-func (f *Function) SetCreatorNode(node ast.Node) { f.ASTCreator = node }
+func (f *Function) AddDependency(dep Object) {
+	if f.Dependencies == nil {
+		f.Dependencies = make(map[Object]bool)
+	}
+	f.Dependencies[dep] = true
+}
+func (f *Function) GetDependencyLinks() map[Object]bool { return f.Dependencies }
+func (f *Function) GetCreatorNode() ast.Node            { return f.ASTCreator }
+func (f *Function) SetCreatorNode(node ast.Node)        { f.ASTCreator = node }
 
 type BuiltinFunction func(args ...Object) Object
 
 type Builtin struct {
 	Fn           BuiltinFunction
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
@@ -374,7 +429,7 @@ func (b *Builtin) Type() ObjectType { return BUILTIN_OBJ }
 func (b *Builtin) Inspect() string  { return "builtin function" }
 func (b *Builtin) String() String   { return String{Value: b.Inspect()} }
 func (b *Builtin) Copy() Object {
-	return &Builtin{Fn: b.Fn, Dependencies: []Object{b}, ASTCreator: b.ASTCreator}
+	return &Builtin{Fn: b.Fn, Dependencies: map[Object]bool{b: true}, ASTCreator: b.ASTCreator}
 }
 
 // JEM: Could properly implement builtin comparison
@@ -384,14 +439,19 @@ func (b *Builtin) Equal(o Object) bool {
 }
 func (b *Builtin) Falsey() Object { return NIL.Copy() }
 
-func (b *Builtin) AddDependency(dep Object)     { b.Dependencies = append(b.Dependencies, dep) }
-func (b *Builtin) GetDependencyLinks() []Object { return b.Dependencies }
-func (b *Builtin) GetCreatorNode() ast.Node     { return b.ASTCreator }
-func (b *Builtin) SetCreatorNode(node ast.Node) { b.ASTCreator = node }
+func (b *Builtin) AddDependency(dep Object) {
+	if b.Dependencies == nil {
+		b.Dependencies = make(map[Object]bool)
+	}
+	b.Dependencies[dep] = true
+}
+func (b *Builtin) GetDependencyLinks() map[Object]bool { return b.Dependencies }
+func (b *Builtin) GetCreatorNode() ast.Node            { return b.ASTCreator }
+func (b *Builtin) SetCreatorNode(node ast.Node)        { b.ASTCreator = node }
 
 type Array struct {
 	Elements     []Object
-	Dependencies []Object
+	Dependencies map[Object]bool
 	Length       Integer
 	Offset       Integer
 	ASTCreator   ast.Node
@@ -434,11 +494,14 @@ func (a *Array) Equal(o Object) bool {
 }
 func (a *Array) Falsey() Object { return EMPTY_ARRAY.Copy() }
 func (a *Array) Copy() Object {
-	return &Array{Elements: a.Elements, Dependencies: []Object{a}, Length: *a.Length.Copy().(*Integer), Offset: *a.Offset.Copy().(*Integer), ASTCreator: a.ASTCreator}
+	return &Array{Elements: a.Elements, Dependencies: map[Object]bool{a: true}, Length: *a.Length.Copy().(*Integer), Offset: *a.Offset.Copy().(*Integer), ASTCreator: a.ASTCreator}
 }
 
 func (a *Array) AddDependency(dep Object) {
-	a.Dependencies = append(a.Dependencies, dep)
+	if a.Dependencies == nil {
+		a.Dependencies = make(map[Object]bool)
+	}
+	a.Dependencies[dep] = true
 }
 func (a *Array) AddLengthDependency(dep Object) {
 	a.Length.AddDependency(dep)
@@ -447,8 +510,13 @@ func (a *Array) AddOffsetDependency(dep Object) {
 	a.Offset.AddDependency(dep)
 }
 
-func (a *Array) GetDependencyLinks() []Object {
-	return append(append([]Object{}, a.Dependencies...), &a.Length)
+func (a *Array) GetDependencyLinks() map[Object]bool {
+	out := make(map[Object]bool)
+	for k, v := range a.Dependencies {
+		out[k] = v
+	}
+	out[&a.Length] = true
+	return out
 }
 
 func (a *Array) GetCreatorNode() ast.Node     { return a.ASTCreator }
@@ -459,7 +527,7 @@ type PureFunction struct {
 	Body         *ast.BlockStatement
 	Env          *Environment
 	Cache        map[string]Object
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
@@ -498,13 +566,18 @@ func (f *PureFunction) Set(args []Object, val Object) Object {
 	return val
 }
 func (f *PureFunction) Copy() Object {
-	return &PureFunction{Parameters: f.Parameters, Body: f.Body, Cache: f.Cache, Env: f.Env, Dependencies: []Object{f}, ASTCreator: f.ASTCreator}
+	return &PureFunction{Parameters: f.Parameters, Body: f.Body, Cache: f.Cache, Env: f.Env, Dependencies: map[Object]bool{f: true}, ASTCreator: f.ASTCreator}
 }
 
 func (f *PureFunction) GetCreatorNode() ast.Node     { return f.ASTCreator }
 func (f *PureFunction) SetCreatorNode(node ast.Node) { f.ASTCreator = node }
 
-func (f *PureFunction) AddDependency(dep Object) { f.Dependencies = append(f.Dependencies, dep) }
+func (f *PureFunction) AddDependency(dep Object) {
+	if f.Dependencies == nil {
+		f.Dependencies = make(map[Object]bool)
+	}
+	f.Dependencies[dep] = true
+}
 
 // JEM: Could properly implement function comparison
 func (f *PureFunction) Equal(o Object) bool {
@@ -512,7 +585,7 @@ func (f *PureFunction) Equal(o Object) bool {
 	return ok && false
 }
 
-func (f *PureFunction) GetDependencyLinks() []Object { return f.Dependencies }
+func (f *PureFunction) GetDependencyLinks() map[Object]bool { return f.Dependencies }
 
 func objectsToString(args []Object) string {
 	var res string
@@ -531,7 +604,7 @@ type Hash struct {
 	Pairs        map[HashKey]HashPair
 	Length       Integer
 	Offset       Integer
-	Dependencies []Object
+	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
 
@@ -576,15 +649,25 @@ func (h *Hash) Equal(o Object) bool {
 func (h *Hash) Falsey() Object { return EMPTY_HASH.Copy() }
 
 func (h *Hash) Copy() Object {
-	return &Hash{Pairs: h.Pairs, Length: *h.Length.Copy().(*Integer), Offset: *h.Offset.Copy().(*Integer), Dependencies: []Object{h}, ASTCreator: h.ASTCreator}
+	return &Hash{Pairs: h.Pairs, Length: *h.Length.Copy().(*Integer), Offset: *h.Offset.Copy().(*Integer), Dependencies: map[Object]bool{h: true}, ASTCreator: h.ASTCreator}
 }
 
-func (h *Hash) AddDependency(dep Object)       { h.Dependencies = append(h.Dependencies, dep) }
+func (h *Hash) AddDependency(dep Object) {
+	if h.Dependencies == nil {
+		h.Dependencies = make(map[Object]bool)
+	}
+	h.Dependencies[dep] = true
+}
 func (h *Hash) AddLengthDependency(dep Object) { h.Length.AddDependency(dep) }
 func (h *Hash) AddOffsetDependency(dep Object) { h.Offset.AddDependency(dep) }
 
-func (h *Hash) GetDependencyLinks() []Object {
-	return append(append([]Object{}, h.Dependencies...), &h.Length)
+func (h *Hash) GetDependencyLinks() map[Object]bool {
+	out := make(map[Object]bool)
+	for k, v := range h.Dependencies {
+		out[k] = v
+	}
+	out[&h.Length] = true
+	return out
 }
 
 func (h *Hash) GetCreatorNode() ast.Node     { return h.ASTCreator }
@@ -601,7 +684,7 @@ type Hashable interface {
 
 type DebugTraceMetadata struct {
 	DebugMetadata map[string]bool
-	Dependencies  []Object
+	Dependencies  map[Object]bool
 	ASTCreator    ast.Node
 }
 
@@ -611,7 +694,7 @@ func (d *DebugTraceMetadata) Type() ObjectType { return DEBUG_TRACE_METADATA_OBJ
 func (d *DebugTraceMetadata) Inspect() string  { return fmt.Sprintf("%+v\n", d.DebugMetadata) }
 func (d *DebugTraceMetadata) String() String   { return String{Value: d.Inspect()} }
 func (d *DebugTraceMetadata) Copy() Object {
-	return &DebugTraceMetadata{DebugMetadata: d.DebugMetadata, Dependencies: []Object{d}, ASTCreator: d.ASTCreator}
+	return &DebugTraceMetadata{DebugMetadata: d.DebugMetadata, Dependencies: map[Object]bool{d: true}, ASTCreator: d.ASTCreator}
 }
 
 // JEM: Could properly implement builtin comparison
@@ -621,8 +704,13 @@ func (d *DebugTraceMetadata) Equal(o Object) bool {
 }
 func (d *DebugTraceMetadata) Falsey() Object { return NIL.Copy() }
 
-func (d *DebugTraceMetadata) AddDependency(dep Object)     { d.Dependencies = append(d.Dependencies, dep) }
-func (d *DebugTraceMetadata) GetDependencyLinks() []Object { return d.Dependencies }
+func (d *DebugTraceMetadata) AddDependency(dep Object) {
+	if d.Dependencies == nil {
+		d.Dependencies = make(map[Object]bool)
+	}
+	d.Dependencies[dep] = true
+}
+func (d *DebugTraceMetadata) GetDependencyLinks() map[Object]bool { return d.Dependencies }
 
 func (d *DebugTraceMetadata) GetCreatorNode() ast.Node     { return d.ASTCreator }
 func (d *DebugTraceMetadata) SetCreatorNode(node ast.Node) { d.ASTCreator = node }

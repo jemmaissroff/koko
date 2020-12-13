@@ -33,8 +33,6 @@ func (l *Lexer) NextToken() token.Token {
 
 	l.skipWhitespace()
 
-	tok.Context = token.ContextData{LineNumber: l.lineNumber, File: l.filename}
-
 	switch l.ch {
 	case '=':
 		tok = twoChar(l, token.ASSIGN, token.EQ, '=')
