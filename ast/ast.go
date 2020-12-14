@@ -15,7 +15,7 @@ type Span struct {
 }
 
 func spanFromToken(t token.Token) Span {
-	return Span{BeginLine: t.Context.LineNumber}
+	return Span{BeginLine: t.Context.LineNumber, BeginPos: t.Context.PositionInLine}
 }
 
 func (self Span) merge(other Span) Span {
@@ -66,6 +66,38 @@ func (b *BuiltinValue) String() string {
 
 func (b *BuiltinValue) Span() Span {
 	return EMPTY_SPAN
+}
+
+type LengthNode struct {
+	Child Node
+}
+
+func (l *LengthNode) TokenLiteral() string {
+	return ""
+}
+
+func (l *LengthNode) String() string {
+	return "len(" + l.Child.String() + ")"
+}
+
+func (l *LengthNode) Span() Span {
+	return l.Child.Span()
+}
+
+type OffsetNode struct {
+	Child Node
+}
+
+func (l *OffsetNode) TokenLiteral() string {
+	return ""
+}
+
+func (l *OffsetNode) String() string {
+	return "offset of " + l.Child.String()
+}
+
+func (l *OffsetNode) Span() Span {
+	return l.Child.Span()
 }
 
 type Program struct {

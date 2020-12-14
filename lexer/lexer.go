@@ -3,12 +3,13 @@ package lexer
 import "koko/token"
 
 type Lexer struct {
-	input        string
-	position     int  // current position in input (points to current char)
-	readPosition int  // current reading position in input (after current char)
-	ch           byte // current char under examination
-	lineNumber   int
-	filename     string
+	input            string
+	position         int  // current position in input (points to current char)
+	readPosition     int  // current reading position in input (after current char)
+	ch               byte // current char under examination
+	lastLineBreakPos int  // the position of the most recent line break
+	lineNumber       int
+	filename         string
 }
 
 func New(input string, filename string) *Lexer {
@@ -30,6 +31,7 @@ func (l *Lexer) readChar() {
 
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
+	tok.Context = token.ContextData{LineNumber: l.lineNumber, File: l.filename, PositionInLine: l.position - l.lastLineBreakPos}
 
 	l.skipWhitespace()
 
@@ -131,7 +133,7 @@ func (l *Lexer) readComment() token.Token {
 		l.readChar()
 	}
 
-	context := token.ContextData{LineNumber: l.lineNumber, File: l.filename}
+	context := token.ContextData{LineNumber: l.lineNumber, File: l.filename, PositionInLine: l.position - l.lastLineBreakPos}
 	return token.Token{
 		Type:    token.COMMENT,
 		Literal: l.input[position:l.position],
@@ -160,7 +162,7 @@ func (l *Lexer) readNumber() token.Token {
 		}
 	}
 
-	context := token.ContextData{LineNumber: l.lineNumber, File: l.filename}
+	context := token.ContextData{LineNumber: l.lineNumber, File: l.filename, PositionInLine: l.position - l.lastLineBreakPos}
 	return token.Token{
 		Type:    tokenType,
 		Literal: l.input[position:l.position],
@@ -177,7 +179,7 @@ func isDecimal(ch byte) bool {
 }
 
 func newToken(l *Lexer, tokenType token.TokenType, ch byte) token.Token {
-	context := token.ContextData{LineNumber: l.lineNumber, File: l.filename}
+	context := token.ContextData{LineNumber: l.lineNumber, File: l.filename, PositionInLine: l.position - l.lastLineBreakPos}
 	return token.Token{Type: tokenType, Literal: string(ch), Context: context}
 }
 
@@ -185,6 +187,7 @@ func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
 		if l.ch == '\n' {
 			l.lineNumber += 1
+			l.lastLineBreakPos = l.position
 		}
 		l.readChar()
 	}
@@ -203,7 +206,7 @@ func twoChar(l *Lexer, firstToken token.TokenType, secondToken token.TokenType, 
 		ch := l.ch
 		l.readChar()
 		literal := string(ch) + string(l.ch)
-		context := token.ContextData{LineNumber: l.lineNumber, File: l.filename}
+		context := token.ContextData{LineNumber: l.lineNumber, File: l.filename, PositionInLine: l.position - l.lastLineBreakPos}
 		return token.Token{Type: secondToken, Literal: literal, Context: context}
 	} else {
 		return newToken(l, firstToken, l.ch)

@@ -3,6 +3,7 @@ package evaluator
 import (
 	"fmt"
 	"io/ioutil"
+	"koko/ast"
 	"koko/object"
 	"math/rand"
 	"sort"
@@ -180,6 +181,8 @@ func init() {
 				// NOTE (Peter) this should be okay instead of calling object.CreateArray
 				// But be very careful when changing this for dependency reasons
 				res := object.Array{Elements: elements}
+				res.Offset.ASTCreator = &ast.StringLiteral{Value: "OFFSET"}
+				res.Length.ASTCreator = &ast.StringLiteral{Value: "LENGTHA"}
 				res.AddDependency(args[0])
 				res.AddLengthDependency(args[0])
 				return &res

@@ -131,6 +131,12 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return index
 		}
 		res := evalIndexExpression(left, index)
+		if arrRes, ok := res.(*object.Array); ok {
+			arrRes.Offset.SetCreatorNode(node)
+		}
+		if hashRes, ok := res.(*object.Hash); ok {
+			hashRes.Offset.SetCreatorNode(node)
+		}
 		res.SetCreatorNode(node)
 		return res
 	case *ast.HashLiteral:
@@ -385,6 +391,8 @@ func addElements(left *object.Array, right *object.Array) *object.Array {
 	// NOTE (Peter) this should be okay instead of calling object.CreateArray
 	// But be very careful when changing this for dependency reasons
 	res := object.Array{}
+	res.Offset.ASTCreator = &ast.StringLiteral{Value: "OFFSET"}
+	res.Length.ASTCreator = &ast.StringLiteral{Value: "LENGTHA"}
 	for _, el := range left.Elements {
 		elCopy := el.Copy()
 		res.AddDependency(elCopy)
@@ -676,7 +684,7 @@ func extendPureFunctionEnv(
 func unwrapReturnValue(obj object.Object) object.Object {
 	if returnValue, ok := obj.(*object.Return); ok {
 		// TODO Peter this graph is a little over complex
-		res := returnValue.Value.Copy()
+		res := returnValue.Value.CopyWithoutDependency()
 		res.AddDependency(obj)
 		return res
 	}
