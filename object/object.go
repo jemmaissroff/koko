@@ -36,8 +36,8 @@ var (
 	EMPTY_STRING = &String{Value: "", ASTCreator: &ast.BuiltinValue{}}
 	ZERO_INTEGER = &Integer{Value: 0, ASTCreator: &ast.BuiltinValue{}}
 	ZERO_FLOAT   = &Float{Value: 0, ASTCreator: &ast.BuiltinValue{}}
-	EMPTY_ARRAY  = &Array{Elements: []Object{}, ASTCreator: &ast.BuiltinValue{}, Length: Integer{ASTCreator: &ast.BuiltinValue{}}, Offset: Integer{ASTCreator: &ast.BuiltinValue{}}}
-	EMPTY_HASH   = &Hash{Pairs: make(map[HashKey]HashPair), ASTCreator: &ast.BuiltinValue{}, Length: Integer{ASTCreator: &ast.BuiltinValue{}}, Offset: Integer{ASTCreator: &ast.BuiltinValue{}}}
+	EMPTY_ARRAY  = &Array{Elements: []Object{}, ASTCreator: &ast.BuiltinValue{}, Length: Integer{ASTCreator: &ast.BuiltinValue{}}, Offset: Offset{ASTCreator: &ast.BuiltinValue{}}}
+	EMPTY_HASH   = &Hash{Pairs: make(map[HashKey]HashPair), ASTCreator: &ast.BuiltinValue{}, Length: Integer{ASTCreator: &ast.BuiltinValue{}}, Offset: Offset{ASTCreator: &ast.BuiltinValue{}}}
 )
 
 func copyDependencies(deps []Object) []Object {
@@ -427,7 +427,7 @@ type Array struct {
 	Elements     []Object
 	Dependencies map[Object]bool
 	Length       Integer
-	Offset       Integer
+	Offset       Offset
 	ASTCreator   ast.Node
 }
 
@@ -470,10 +470,10 @@ func (a *Array) Equal(o Object) bool {
 }
 func (a *Array) Falsey() Object { return EMPTY_ARRAY.Copy() }
 func (a *Array) Copy() Object {
-	return &Array{Elements: a.Elements, Dependencies: map[Object]bool{a: true}, Length: *a.Length.Copy().(*Integer), Offset: *a.Offset.Copy().(*Integer), ASTCreator: a.ASTCreator}
+	return &Array{Elements: a.Elements, Dependencies: map[Object]bool{a: true}, Length: *a.Length.Copy().(*Integer), Offset: *a.Offset.Copy().(*Offset), ASTCreator: a.ASTCreator}
 }
 func (a *Array) CopyWithoutDependency() Object {
-	return &Array{Elements: a.Elements, Length: *a.Length.Copy().(*Integer), Offset: *a.Offset.Copy().(*Integer), ASTCreator: a.ASTCreator}
+	return &Array{Elements: a.Elements, Length: *a.Length.Copy().(*Integer), Offset: *a.Offset.Copy().(*Offset), ASTCreator: a.ASTCreator}
 }
 
 func (a *Array) AddDependency(dep Object) {
@@ -590,7 +590,7 @@ type HashPair struct {
 type Hash struct {
 	Pairs        map[HashKey]HashPair
 	Length       Integer
-	Offset       Integer
+	Offset       Offset
 	Dependencies map[Object]bool
 	ASTCreator   ast.Node
 }
@@ -636,11 +636,11 @@ func (h *Hash) Equal(o Object) bool {
 func (h *Hash) Falsey() Object { return EMPTY_HASH.Copy() }
 
 func (h *Hash) Copy() Object {
-	return &Hash{Pairs: h.Pairs, Length: *h.Length.Copy().(*Integer), Offset: *h.Offset.Copy().(*Integer), Dependencies: map[Object]bool{h: true}, ASTCreator: h.ASTCreator}
+	return &Hash{Pairs: h.Pairs, Length: *h.Length.Copy().(*Integer), Offset: *h.Offset.Copy().(*Offset), Dependencies: map[Object]bool{h: true}, ASTCreator: h.ASTCreator}
 }
 
 func (h *Hash) CopyWithoutDependency() Object {
-	return &Hash{Pairs: h.Pairs, Length: *h.Length.Copy().(*Integer), Offset: *h.Offset.Copy().(*Integer), ASTCreator: h.ASTCreator}
+	return &Hash{Pairs: h.Pairs, Length: *h.Length.Copy().(*Integer), Offset: *h.Offset.Copy().(*Offset), ASTCreator: h.ASTCreator}
 }
 
 func (h *Hash) AddDependency(dep Object) {
@@ -672,6 +672,39 @@ type HashKey struct {
 type Hashable interface {
 	HashKey() HashKey
 }
+
+type Offset struct {
+	Dependencies map[Object]bool
+	ASTCreator   ast.Node
+}
+
+func (o *Offset) Inspect() string  { return fmt.Sprintf("Offset Object (Internal)") }
+func (o *Offset) Type() ObjectType { return "OFFSET" }
+func (o *Offset) String() String   { return String{Value: o.Inspect()} }
+func (o *Offset) Copy() Object {
+	return &Offset{Dependencies: map[Object]bool{o: true}, ASTCreator: o.ASTCreator}
+}
+func (o *Offset) CopyWithoutDependency() Object {
+	return &Offset{ASTCreator: o.ASTCreator}
+}
+func (o *Offset) HashKey() HashKey {
+	// these don't go in hashmaps
+	return HashKey{Type: o.Type(), Value: float64(0)}
+}
+func (o *Offset) Equal(obj Object) bool {
+	comp, ok := obj.(*Offset)
+	return ok && o == comp
+}
+func (o *Offset) Falsey() Object { return ZERO_INTEGER.Copy() }
+func (o *Offset) AddDependency(dep Object) {
+	if o.Dependencies == nil {
+		o.Dependencies = make(map[Object]bool)
+	}
+	o.Dependencies[dep] = true
+}
+func (o *Offset) GetDependencyLinks() map[Object]bool { return o.Dependencies }
+func (o *Offset) GetCreatorNode() ast.Node            { return o.ASTCreator }
+func (o *Offset) SetCreatorNode(node ast.Node)        { o.ASTCreator = node }
 
 type DebugTraceMetadata struct {
 	DebugMetadata map[string]bool

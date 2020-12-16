@@ -13,7 +13,11 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 	case *ast.Program:
 		res := evalProgram(node, env)
-		res.SetCreatorNode(node)
+		// (Peter) we need this b/c otherwise we crash on comments
+		// TODO come up with a better solution
+		if res != nil {
+			res.SetCreatorNode(node)
+		}
 		return res
 
 	case *ast.BlockStatement:
@@ -23,7 +27,11 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 	case *ast.ExpressionStatement:
 		res := Eval(node.Expression, env)
-		res.SetCreatorNode(node)
+		// (Peter) we need this b/c otherwise we crash on comments
+		// TODO come up with a better solution
+		if res != nil {
+			res.SetCreatorNode(node)
+		}
 		return res
 
 	case *ast.ReturnStatement:

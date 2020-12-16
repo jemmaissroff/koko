@@ -20,6 +20,35 @@ func escapeStringForGraphviz(s string) string {
 	return out
 }
 
+func collapseOffsetNodes(offset *Offset) map[Object]bool {
+	out := make(map[Object]bool)
+	for dep := range offset.Dependencies {
+		if offDep, ok := dep.(*Offset); ok {
+			collapsedDeps := collapseOffsetNodes(offDep)
+			for cd := range collapsedDeps {
+				out[cd] = true
+			}
+		} else {
+			out[dep] = true
+		}
+	}
+	return out
+}
+
+func getObservableDepsFromObj(obj Object) []Object {
+	out := []Object{}
+	for d := range obj.GetDependencyLinks() {
+		if off, ok := d.(*Offset); ok {
+			for dep := range collapseOffsetNodes(off) {
+				out = append(out, dep)
+			}
+		} else {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 func GetAllDependenciesToDotLang(result Object) string {
 	seenNodes := make(map[Object]bool)
 	queue := []Object{}
@@ -38,7 +67,7 @@ func GetAllDependenciesToDotLang(result Object) string {
 			continue
 		}
 		seenNodes[head] = true
-		for link := range head.GetDependencyLinks() {
+		for _, link := range getObservableDepsFromObj(head) {
 			// TODO (Peter lots of conditions here!!! Clean them up!)
 			if head.GetCreatorNode() == nil {
 				panic(fmt.Sprintf("Graph construction failed %+v\n", head))
@@ -46,10 +75,17 @@ func GetAllDependenciesToDotLang(result Object) string {
 			if link.GetCreatorNode() == nil {
 				panic(fmt.Sprintf("Graph construction failed %+v\n", link))
 			}
+			// TODO (Peter) this really needs to be cleaner like very now
 			if _, ok := head.GetCreatorNode().(*ast.BuiltinValue); ok {
 				continue
 			}
 			if _, ok := link.GetCreatorNode().(*ast.BuiltinValue); ok {
+				continue
+			}
+			if _, ok := head.(*Offset); ok {
+				continue
+			}
+			if _, ok := link.(*Offset); ok {
 				continue
 			}
 			if head.GetCreatorNode().String() == link.GetCreatorNode().String() {
