@@ -17,7 +17,7 @@ func main() {
 		}()
 		return nil
 	}))
-	fmt.Println("interpreter successfully loaded")
+	fmt.Println("interpreter successfully loaded yay")
 	// wait forever without spinning (I think)
 	<-c
 }

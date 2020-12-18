@@ -12,7 +12,7 @@ import (
 )
 
 func testEvalAndGetDeps(input string, fname string) object.Object {
-	l := lexer.New(input)
+	l := lexer.New(input, fname)
 	p := parser.New(l)
 	program := p.ParseProgram()
 	env := object.NewEnvironment()
@@ -76,6 +76,15 @@ func TestDependencyTrackingInBasicFunctionWithConditional(t *testing.T) {
 	res := testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0", "1"})
 	program = "let f = fn(a, b, c) { if (a > 0) { b } else { c } }; deps(f, -1, 2, 0)"
+	res = testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0", "2"})
+}
+
+func TestDependencyTrackingInBasicFunctionWithConditionalWithReturn(t *testing.T) {
+	program := "let f = fn(a, b, c) { if (a > 0) { return b } else { return c } }; deps(f, 1, 2, 0)"
+	res := testEval(program)
+	assertObjectDepsEqual(t, res, []string{"0", "1"})
+	program = "let f = fn(a, b, c) { if (a > 0) { return b } else { return c } }; deps(f, -1, 2, 0)"
 	res = testEval(program)
 	assertObjectDepsEqual(t, res, []string{"0", "2"})
 }

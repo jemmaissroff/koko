@@ -12,13 +12,27 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
 
 	case *ast.Program:
-		return evalProgram(node, env)
+		res := evalProgram(node, env)
+		// (Peter) we need this b/c otherwise we crash on comments
+		// TODO come up with a better solution
+		if res != nil {
+			res.SetCreatorNode(node)
+		}
+		return res
 
 	case *ast.BlockStatement:
-		return evalBlockStatement(node, env)
+		res := evalBlockStatement(node, env)
+		res.SetCreatorNode(node)
+		return res
 
 	case *ast.ExpressionStatement:
-		return Eval(node.Expression, env)
+		res := Eval(node.Expression, env)
+		// (Peter) we need this b/c otherwise we crash on comments
+		// TODO come up with a better solution
+		if res != nil {
+			res.SetCreatorNode(node)
+		}
+		return res
 
 	case *ast.ReturnStatement:
 		val := Eval(node.ReturnValue, env)
@@ -30,19 +44,23 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return res
 
 	case *ast.IntegerLiteral:
-		return &object.Integer{Value: node.Value}
+		return &object.Integer{Value: node.Value, ASTCreator: node}
 	case *ast.FloatLiteral:
-		return &object.Float{Value: node.Value}
+		return &object.Float{Value: node.Value, ASTCreator: node}
 	case *ast.StringLiteral:
-		return &object.String{Value: node.Value}
+		return &object.String{Value: node.Value, ASTCreator: node}
 	case *ast.Boolean:
-		return nativeBoolToBooleanObject(node.Value)
+		res := nativeBoolToBooleanObject(node.Value)
+		res.SetCreatorNode(node)
+		return res
 	case *ast.PrefixExpression:
 		right := Eval(node.Right, env)
 		if isError(right) {
 			return right
 		}
-		return evalPrefixExpression(node.Operator, right)
+		res := evalPrefixExpression(node.Operator, right)
+		res.SetCreatorNode(node)
+		return res
 	case *ast.InfixExpression:
 		// TODO (Peter) add short circuiting
 		left := Eval(node.Left, env)
@@ -53,15 +71,21 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(right) {
 			return right
 		}
-		return evalInfixExpression(node.Operator, left, right)
+		res := evalInfixExpression(node.Operator, left, right)
+		res.SetCreatorNode(node)
+		return res
 	case *ast.IfExpression:
-		return evalIfExpression(node, env)
+		res := evalIfExpression(node, env)
+		res.SetCreatorNode(node)
+		return res
 	case *ast.LetStatement:
 		val := Eval(node.Value, env)
 		if isError(val) {
 			return val
 		}
-		return env.Set(node.Name.Value, val)
+		res := env.Set(node.Name.Value, val)
+		res.SetCreatorNode(node)
+		return res
 	case *ast.ImportStatement:
 		// This returns the last statement evaluated, or error if exists
 		loaded := LoadProgramFromFile(node.Value, env)
@@ -70,15 +94,21 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 		return nil
 	case *ast.Identifier:
-		return evalIdentifier(node, env)
+		res := evalIdentifier(node, env)
+		res.SetCreatorNode(node)
+		return res
 	case *ast.FunctionLiteral:
 		params := node.Parameters
 		body := node.Body
-		return &object.Function{Parameters: params, Env: env, Body: body}
+		res := &object.Function{Parameters: params, Env: env, Body: body}
+		res.SetCreatorNode(node)
+		return res
 	case *ast.PureFunctionLiteral:
 		params := node.Parameters
 		body := node.Body
-		return object.NewPureFunction(params, env, body)
+		res := object.NewPureFunction(params, env, body)
+		res.SetCreatorNode(node)
+		return res
 	case *ast.CallExpression:
 		function := Eval(node.Function, env)
 		if isError(function) {
@@ -88,13 +118,17 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if len(args) == 1 && isError(args[0]) {
 			return args[0]
 		}
-		return applyFunction(function, args)
+		res := applyFunction(function, args)
+		res.SetCreatorNode(node)
+		return res
 	case *ast.ArrayLiteral:
 		elements := evalExpressions(node.Elements, env)
 		if len(elements) == 1 && isError(elements[0]) {
 			return elements[0]
 		}
-		return object.CreateArray(elements)
+		res := object.CreateArray(elements)
+		res.SetCreatorNode(node)
+		return res
 	case *ast.IndexExpression:
 		left := Eval(node.Left, env)
 		if isError(left) {
@@ -104,9 +138,19 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(index) {
 			return index
 		}
-		return evalIndexExpression(left, index)
+		res := evalIndexExpression(left, index)
+		if arrRes, ok := res.(*object.Array); ok {
+			arrRes.Offset.SetCreatorNode(node)
+		}
+		if hashRes, ok := res.(*object.Hash); ok {
+			hashRes.Offset.SetCreatorNode(node)
+		}
+		res.SetCreatorNode(node)
+		return res
 	case *ast.HashLiteral:
-		return evalHashLiteral(node, env)
+		res := evalHashLiteral(node, env)
+		res.SetCreatorNode(node)
+		return res
 	}
 	return nil
 }
@@ -645,9 +689,11 @@ func extendPureFunctionEnv(
 
 func unwrapReturnValue(obj object.Object) object.Object {
 	if returnValue, ok := obj.(*object.Return); ok {
-		return returnValue.Value
+		// TODO Peter this graph is a little over complex
+		res := returnValue.Value.CopyWithoutDependency()
+		res.AddDependency(obj)
+		return res
 	}
-
 	return obj
 }
 

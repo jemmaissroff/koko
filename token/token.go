@@ -14,8 +14,9 @@ type Token struct {
 }
 
 type ContextData struct {
-	LineNumber int
-	File       string
+	LineNumber     int
+	PositionInLine int
+	File           string
 }
 
 func (c ContextData) String() string {

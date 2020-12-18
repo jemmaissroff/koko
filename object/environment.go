@@ -19,7 +19,7 @@ func (e *Environment) Get(name string) (Object, bool) {
 }
 
 func (e *Environment) Set(name string, val Object) Object {
-	e.store[name] = val
+	e.store[name] = val.Copy()
 	return val
 }
 
