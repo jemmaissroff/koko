@@ -13,7 +13,7 @@ import (
 )
 
 func testBuild(input string) (*ast.Program, *object.Environment) {
-	l := lexer.New(input)
+	l := lexer.New(input, "benchmark_test_fname.go")
 	p := parser.New(l)
 	program := p.ParseProgram()
 	env := object.NewEnvironment()

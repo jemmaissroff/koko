@@ -8,7 +8,7 @@ import (
 )
 
 func testEval(input string) object.Object {
-	l := lexer.New(input)
+	l := lexer.New(input, "test_file.koko")
 	p := parser.New(l)
 	program := p.ParseProgram()
 	env := object.NewEnvironment()
@@ -374,7 +374,7 @@ func TestFunctionObject(t *testing.T) {
 		t.Fatalf("parameter is not 'x'. got=%q", fn.Parameters[0])
 	}
 
-	expectedBody := "(x + 2)"
+	expectedBody := "{ (x + 2) }"
 	if fn.Body.String() != expectedBody {
 		t.Fatalf("body is not %q. got=%q", expectedBody, fn.Body.String())
 	}
