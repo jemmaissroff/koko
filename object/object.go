@@ -502,7 +502,7 @@ func (a *Array) GetCreatorNode() ast.Node { return a.ASTCreator }
 func (a *Array) SetCreatorNode(node ast.Node) {
 	a.ASTCreator = node
 	a.Length.ASTCreator = &ast.LengthNode{Child: node}
-	a.Offset.ASTCreator = &ast.OffsetNode{Child: node}
+	a.Offset.ASTCreator = &ast.BuiltinValue{}
 }
 
 type PureFunction struct {

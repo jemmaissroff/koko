@@ -57,7 +57,6 @@ func GetAllDependenciesToDotLang(result Object) string {
 	seenOutputEdges := make(map[string]bool)
 	for len(queue) > 0 {
 		head := queue[0]
-		fmt.Printf("HEAD: %+v\n", head)
 		if seenNodes[head] {
 			if len(queue) > 1 {
 				queue = queue[1:]

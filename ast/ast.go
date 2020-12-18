@@ -18,16 +18,16 @@ func spanFromToken(t token.Token) Span {
 	return Span{BeginLine: t.Context.LineNumber, BeginPos: t.Context.PositionInLine}
 }
 
-func (self Span) merge(other Span) Span {
-	out := Span{BeginLine: self.BeginLine, BeginPos: self.BeginPos}
-	if self.empty {
+func (s Span) merge(other Span) Span {
+	out := Span{BeginLine: s.BeginLine, BeginPos: s.BeginPos}
+	if s.empty {
 		out = Span{BeginLine: other.BeginLine, BeginPos: other.BeginPos, empty: other.empty}
 		return out
 	} else if other.empty {
-		out = Span{BeginLine: self.BeginLine, BeginPos: self.BeginPos, empty: self.empty}
+		out = Span{BeginLine: s.BeginLine, BeginPos: s.BeginPos, empty: s.empty}
 		return out
 	}
-	if other.BeginLine < self.BeginLine || (other.BeginLine == self.BeginLine && other.BeginPos < self.BeginPos) {
+	if other.BeginLine < s.BeginLine || (other.BeginLine == s.BeginLine && other.BeginPos < s.BeginPos) {
 		out.BeginLine = other.BeginLine
 		out.BeginPos = other.BeginPos
 	}
@@ -53,6 +53,7 @@ type Expression interface {
 	expressionNode()
 }
 
+// BuiltinValue and LengthNode are special nodes which are just used for the dependency graph
 type BuiltinValue struct {
 }
 
@@ -81,22 +82,6 @@ func (l *LengthNode) String() string {
 }
 
 func (l *LengthNode) Span() Span {
-	return l.Child.Span()
-}
-
-type OffsetNode struct {
-	Child Node
-}
-
-func (l *OffsetNode) TokenLiteral() string {
-	return ""
-}
-
-func (l *OffsetNode) String() string {
-	return "offset of " + l.Child.String()
-}
-
-func (l *OffsetNode) Span() Span {
 	return l.Child.Span()
 }
 

@@ -399,8 +399,6 @@ func addElements(left *object.Array, right *object.Array) *object.Array {
 	// NOTE (Peter) this should be okay instead of calling object.CreateArray
 	// But be very careful when changing this for dependency reasons
 	res := object.Array{}
-	res.Offset.ASTCreator = &ast.StringLiteral{Value: "OFFSET"}
-	res.Length.ASTCreator = &ast.StringLiteral{Value: "LENGTHA"}
 	for _, el := range left.Elements {
 		elCopy := el.Copy()
 		res.AddDependency(elCopy)
